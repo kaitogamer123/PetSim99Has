@@ -1,0 +1,51 @@
+local function PlaceFlag(zoneName)
+    local args = {"Coins Flag", "33ca54bee6434c91b8703448c8369ade", 40}
+    pcall(function()
+        Network:WaitForChild("FlexibleFlags_Consume"):InvokeServer(unpack(args))
+        print("Флаг установлен в зоне: " .. zoneName)
+    end)
+end
+
+local function ExecuteFlagRoutine()
+    print("Запуск расстановки флагов...")
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local activeContainer = workspace:WaitForChild("__THINGS", 10):WaitForChild("__INSTANCE_CONTAINER", 10):WaitForChild("Active", 10)
+    local eventFolder = activeContainer and activeContainer:WaitForChild("EasterHatchEvent", 10)
+    local breakZones = eventFolder and eventFolder:WaitForChild("BREAK_ZONES", 10)
+
+    if breakZones then
+        local zones = {"2", "7", "12", "17"}
+        for _, zoneName in ipairs(zones) do
+            local zonePath = breakZones:WaitForChild(zoneName, 3)
+            if zonePath then
+                -- Обновляем root на случай респавна
+                root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
+                    task.wait(2) 
+                    PlaceFlag(zoneName)
+                    task.wait(1.5)
+                end
+            end
+        end
+    end
+    task.wait(3)
+    -- ТЕЛЕПОРТ К ЯЙЦУ (в конце рутины)
+    root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CFrame = CFrame.new(-18468.873, 15.255, -29149.523)
+        print("Флаги расставлены! Телепорт на яйца выполнен.")
+    end
+end
+
+
+task.wait(240)
+task.spawn(function()
+    while true do
+        ExecuteFlagRoutine()
+        print("Ожидание 3ч 20м до следующей расстановки флагов...")
+        task.wait(12200)
+    end
+end)
