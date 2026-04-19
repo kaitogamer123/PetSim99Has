@@ -186,3 +186,4 @@ task.spawn(function()
     end
 end)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/kaitogamer123/PetSim99Has/refs/heads/main/AutoFlag"))()
