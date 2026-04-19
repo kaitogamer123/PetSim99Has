@@ -185,3 +185,4 @@ task.spawn(function()
         task.wait(0.3)
     end
 end)
+loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
