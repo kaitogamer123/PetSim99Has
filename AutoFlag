@@ -1,5 +1,7 @@
 local function PlaceFlag(zoneName)
-    local args = {"Coins Flag", "33ca54bee6434c91b8703448c8369ade", 40}
+    local args = {"Coins Flag", "33ca54bee6434c91b8703448c8369ade", 20}
+    pcall(function()
+        Network:WaitForChild("FlexibleFlags_Consume"):InvokeServer(unpack(args))
     pcall(function()
         Network:WaitForChild("FlexibleFlags_Consume"):InvokeServer(unpack(args))
         print("Флаг установлен в зоне: " .. zoneName)
@@ -41,7 +43,7 @@ local function ExecuteFlagRoutine()
 end
 
 
-task.wait(240)
+task.wait(20)
 task.spawn(function()
     while true do
         ExecuteFlagRoutine()
