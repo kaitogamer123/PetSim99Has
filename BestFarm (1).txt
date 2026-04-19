@@ -1,0 +1,189 @@
+-- Ждем загрузку игры
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
+
+local lp = game.Players.LocalPlayer
+local root = lp.Character:WaitForChild("HumanoidRootPart")
+local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
+
+task.wait(10)
+
+-- 1. ХУК ФУНКЦИЙ (Заменяем код анимации на пустоту)
+for _, v in pairs(getgc(true)) do
+    if type(v) == "table" and rawget(v, "Play") and type(v.Play) == "function" then
+        -- Ищем функцию Play внутри модулей, связанных с яйцами
+        local info = getinfo(v.Play)
+        if info.source:find("Egg") or info.source:find("Hatch") then
+            v.Play = function() return end
+        end
+    elseif type(v) == "function" then
+        local info = getinfo(v)
+        if info.name == "PlayEggAnimation" or info.name == "ShowHatch" then
+            hookfunction(v, function() return end)
+        end
+    end
+end
+
+-- 2. ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ ВСЕХ ЧЕРНЫХ ЭКРАНОВ И ТЕКСТА
+task.spawn(function()
+    while task.wait() do
+        local pGui = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+        if pGui then
+            -- Ищем всё, что перекрывает экран (ZIndex выше 100 обычно у анимаций)
+            for _, gui in pairs(pGui:GetChildren()) do
+                if gui:IsA("ScreenGui") and (gui.Name:find("Egg") or gui.Name:find("Hatch") or gui.Name:find("Scene")) then
+                    gui:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- 3. РАЗБЛОКИРОВКА ИНТЕРФЕЙСА (Main)
+-- Чтобы кнопки не исчезали во время открытия
+task.spawn(function()
+    local Library = require(game:GetService("ReplicatedStorage"):WaitForChild("Library"))
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if Library.Variables then
+            Library.Variables.OpeningEgg = false
+        end
+    end)
+end)
+
+
+-- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
+task.wait(2)
+root.CFrame = CFrame.new(-9954.97949, 25.5751915, -280.856354, -2.03847885e-05, -0.999959171, 0.00903366227, 0.99999994, -2.03847885e-05, 9.22009349e-08, 9.22009349e-08, 0.00903366227, 0.999959171)
+
+-- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
+task.wait(3)
+pcall(function()
+    Network.AutoFarm_Request:InvokeServer(true)
+end)
+
+
+-- 4. ТЕЛЕПОРТ В ЦЕНТР БЛОКА (BREAK_ZONE 7) + 5 по Y
+task.spawn(function()
+    -- Ждем появления зоны, так как ивент-локи грузятся отдельно
+    local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
+    
+    if zonePath then
+        task.wait(1)
+        root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
+    end
+end)
+
+-- 5. ЗАПУСК ТВОЕГО БЫСТРОГО ФАРМА
+_G.MegaFarmSystem = true
+task.spawn(function()
+    local Breakables = workspace.__THINGS:WaitForChild("Breakables")
+    local Orbs = workspace.__THINGS:WaitForChild("Orbs")
+    local Pets = workspace.__THINGS:WaitForChild("Pets")
+
+    -- Цикл фарма и сбора
+    while _G.MegaFarmSystem do
+        pcall(function()
+            -- Сбор сфер
+            local orbIds = {}
+            for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
+            if #orbIds > 0 then Network["Orbs: Collect"]:FireServer(orbIds) end
+            
+            -- Атака петов
+            local targets = Breakables:GetChildren()
+            local petIds = {}
+            for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
+            
+            if #targets > 0 and #petIds > 0 then
+                local data = {}
+                for i, pId in ipairs(petIds) do
+                    data[pId] = targets[math.random(1, #targets)].Name
+                end
+                Network.Breakables_JoinPetBulk:FireServer(data)
+            end
+        end)
+        task.wait(0.1)
+    end
+end)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Library = ReplicatedStorage:WaitForChild("Library")
+local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
+
+-- Функция для твоего хаба
+_G.AutoFarmEnabled = true -- Эту переменную привяжи к кнопке
+
+task.spawn(function()
+    while true do
+        if _G.AutoFarmEnabled then
+            -- Если автофарм еще не включен - включаем его официально
+            if not AutoFarmCmds.IsEnabled() then
+                pcall(function()
+                    AutoFarmCmds.Enable()
+                end)
+            end
+        else
+            -- Если ты выключил чит - выключаем и автофарм игры
+            if AutoFarmCmds.IsEnabled() then
+                pcall(function()
+                    AutoFarmCmds.Disable()
+                end)
+            end
+        end
+        task.wait(1) -- Проверяем статус раз в секунду
+    end
+end)
+
+
+-- 3. ТЕЛЕПОРТ НА ЛОКАЦИЮ ИВЕНТА
+task.wait(15)
+root.CFrame = CFrame.new(-18468.873, 15.2551775, -29149.5234, -0.500557363, 0.0208446495, 0.865452468, -0.000214802058, 0.999707043, -0.0242024418, -0.865703464, -0.0123006115, -0.500406206)
+
+task.wait(1)
+_G.AutoHatchEnabled = true
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Library = ReplicatedStorage:WaitForChild("Library")
+local Network = require(Library.Client.Network)
+local EggCmds = require(Library.Client.EggCmds)
+local lp = game.Players.LocalPlayer
+
+local function getNearestCustomEgg()
+    local nearestID = nil
+    local minDist = 120
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    
+    if root then
+        local customEggs = workspace.__THINGS:FindFirstChild("CustomEggs")
+        if customEggs then
+            for _, egg in pairs(customEggs:GetChildren()) do
+                if egg:IsA("Model") then
+                    local dist = (egg:GetPivot().Position - root.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        nearestID = egg.Name
+                    end
+                end
+            end
+        end
+    end
+    return nearestID
+end
+
+task.spawn(function()
+    local playerGui = lp:WaitForChild("PlayerGui")
+    if playerGui:FindFirstChild("EggOpen") then playerGui.EggOpen.Enabled = false end
+
+    while _G.AutoHatchEnabled do
+        local targetEgg = getNearestCustomEgg()
+        local maxAmount = EggCmds.GetMaxHatch()
+        
+        if targetEgg then
+            pcall(function()
+                ReplicatedStorage.Network.CustomEggs_Hatch:InvokeServer(targetEgg, maxAmount)
+            end)
+        end
+        
+        task.wait(0.3)
+    end
+end)
+loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/kaitogamer123/PetSim99Has/refs/heads/main/AutoFlag"))()
