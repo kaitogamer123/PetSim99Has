@@ -138,52 +138,60 @@ task.wait(15)
 root.CFrame = CFrame.new(-18468.873, 15.2551775, -29149.5234, -0.500557363, 0.0208446495, 0.865452468, -0.000214802058, 0.999707043, -0.0242024418, -0.865703464, -0.0123006115, -0.500406206)
 
 task.wait(1)
-_G.AutoHatchEnabled = true
+local RS = game:GetService("ReplicatedStorage")
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Library = ReplicatedStorage:WaitForChild("Library")
-local Network = require(Library.Client.Network)
-local EggCmds = require(Library.Client.EggCmds)
-local lp = game.Players.LocalPlayer
+local network     = RS:WaitForChild("Network", 10)
+local invokeRemote = network:WaitForChild("Instancing_InvokeCustomFromClient", 10)
+local fireRemote  = network:FindFirstChild("Instancing_FireCustomFromClient")
 
-local function getNearestCustomEgg()
-    local nearestID = nil
-    local minDist = 120
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    
-    if root then
-        local customEggs = workspace.__THINGS:FindFirstChild("CustomEggs")
-        if customEggs then
-            for _, egg in pairs(customEggs:GetChildren()) do
-                if egg:IsA("Model") then
-                    local dist = (egg:GetPivot().Position - root.Position).Magnitude
-                    if dist < minDist then
-                        minDist = dist
-                        nearestID = egg.Name
-                    end
-                end
+local instanceID = "EasterHatchEvent"
+local hatchArg   = "HatchRequest"
+local count      = 0
+local running    = true
+
+-- МЕТОД 1: FireServer потоки (быстрые, но с минимальной паузой 0.05)
+if fireRemote then
+    print("[✓] FireCustom найден - запускаем быстрые потоки")
+    for i = 1, 8 do
+        task.spawn(function()
+            while running do
+                pcall(function()
+                    fireRemote:FireServer(instanceID, hatchArg)
+                end)
+                count += 1
+                task.wait(0.05) -- 20 раз/сек на поток = 160/сек суммарно
+                                -- без этого глушит все remotes
             end
-        end
+        end)
     end
-    return nearestID
+else
+    print("[!] FireCustom не найден")
 end
 
-task.spawn(function()
-    local playerGui = lp:WaitForChild("PlayerGui")
-    if playerGui:FindFirstChild("EggOpen") then playerGui.EggOpen.Enabled = false end
-
-    while _G.AutoHatchEnabled do
-        local targetEgg = getNearestCustomEgg()
-        local maxAmount = EggCmds.GetMaxHatch()
-        
-        if targetEgg then
+-- МЕТОД 2: InvokeServer потоки (сами блокируются - без паузы безопасно)
+for i = 1, 6 do
+    task.spawn(function()
+        while running do
             pcall(function()
-                ReplicatedStorage.Network.CustomEggs_Hatch:InvokeServer(targetEgg, maxAmount)
+                invokeRemote:InvokeServer(instanceID, hatchArg)
             end)
+            count += 1
         end
-        
-        task.wait(0.3)
+    end)
+end
+
+-- Статистика
+local start = tick()
+task.spawn(function()
+    local lastCount = 0
+    while running do
+        task.wait(1)
+        local rate = count - lastCount
+        lastCount = count
+        print(string.format("🥚 %d/сек | Всего: %d", rate, count))
     end
 end)
+
+print("✅ Запущено: 8 Fire + 6 Invoke потоков")
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/kaitogamer123/PetSim99Has/refs/heads/main/AutoFlag.lua"))()
