@@ -82,35 +82,96 @@ end)
 
 -- 5. ЗАПУСК ТВОЕГО БЫСТРОГО ФАРМА
 _G.MegaFarmSystem = true
-task.spawn(function()
-    local Breakables = workspace.__THINGS:WaitForChild("Breakables")
-    local Orbs = workspace.__THINGS:WaitForChild("Orbs")
-    local Pets = workspace.__THINGS:WaitForChild("Pets")
+local ignoredZones = {} 
 
-    -- Цикл фарма и сбора
+task.spawn(function()
+    local Things = workspace:WaitForChild("__THINGS")
+    local Breakables = Things:WaitForChild("Breakables")
+    local Orbs = Things:WaitForChild("Orbs")
+    local Pets = Things:WaitForChild("Pets")
+    
+    -- Безопасный поиск папки ивента
+    local Active = Things:WaitForChild("__INSTANCE_CONTAINER"):WaitForChild("Active")
+    local EasterEvent = Active:WaitForChild("EasterHatchEvent", 20)
+    
+    if not EasterEvent then
+        print("![ОШИБКА]: Папка EasterHatchEvent не появилась. Зайди в локацию ивента!")
+        return
+    end
+    
+    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
+    print("[СИСТЕМА]: Скрипт запущен. Начинаю анализ зон в " .. EasterEvent.Name)
+
+    local function getZoneOfPart(part)
+        for _, zone in pairs(ZonesFolder:GetChildren()) do
+            local size = zone.Size
+            local pos = zone.Position
+            local pPos = part.Position
+            if pPos.X >= pos.X - size.X/2 and pPos.X <= pos.X + size.X/2 and
+               pPos.Z >= pos.Z - size.Z/2 and pPos.Z <= pos.Z + size.Z/2 then
+                return zone.Name
+            end
+        end
+        return nil
+    end
+
     while _G.MegaFarmSystem do
         pcall(function()
-            -- Сбор сфер
+            -- 1. Сбор сфер
             local orbIds = {}
-            for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
+            for _, o in pairs(Orbs:GetChildren()) do 
+                table.insert(orbIds, tonumber(o.Name)) 
+                o:Destroy() 
+            end
             if #orbIds > 0 then Network["Orbs: Collect"]:FireServer(orbIds) end
             
-            -- Атака петов
-            local targets = Breakables:GetChildren()
+            -- 2. Атака
+            local allTargets = Breakables:GetChildren()
             local petIds = {}
             for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
-            
-            if #targets > 0 and #petIds > 0 then
+
+            if #allTargets > 0 and #petIds > 0 then
                 local data = {}
-                for i, pId in ipairs(petIds) do
-                    data[pId] = targets[math.random(1, #targets)].Name
+                for _, pId in ipairs(petIds) do
+                    local target = allTargets[math.random(1, #allTargets)]
+                    local zoneName = getZoneOfPart(target)
+
+                    -- Если нашли новую зону, которую еще не проверяли
+                    if zoneName and ignoredZones[zoneName] == nil then
+                        ignoredZones[zoneName] = "checking" -- Статус проверки
+                        print("[АНАЛИЗ]: Проверяю зону " .. zoneName .. "...")
+
+                        task.delay(2, function()
+                            if target and target.Parent == Breakables then
+                                ignoredZones[zoneName] = true
+                                -- Считаем сколько всего в блэклисте
+                                local count = 0
+                                for _, v in pairs(ignoredZones) do if v == true then count += 1 end end
+                                print("![БЛЭКЛИСТ]: Зона " .. zoneName .. " НЕ ломается. (Всего в бане: " .. count .. "/20)")
+                            else
+                                ignoredZones[zoneName] = false
+                                print("[УСПЕХ]: Зона " .. zoneName .. " доступна для фарма.")
+                            end
+                        end)
+                    end
+
+                    -- Атакуем только если зона подтверждена как рабочая (false) 
+                    -- или пока она еще проверяется (чтобы нанести тот самый пробный удар)
+                    if not zoneName or ignoredZones[zoneName] == false or ignoredZones[zoneName] == "checking" then
+                        data[pId] = target.Name
+                    end
                 end
-                Network.Breakables_JoinPetBulk:FireServer(data)
+                
+                if next(data) then
+                    Network.Breakables_JoinPetBulk:FireServer(data)
+                end
             end
         end)
-        task.wait(0.1)
+        task.wait(0.2)
     end
 end)
+
+-- (Твой остальной код с AutoFarmCmds без изменений)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Library = ReplicatedStorage:WaitForChild("Library")
 local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
@@ -174,4 +235,3 @@ while true do
     network:InvokeServer(unpack(args))
     task.wait(0.1) -- Задержка в 0.1 секунды, чтобы игра не крашнулась и сервер не кикнул за спам
 end
-
