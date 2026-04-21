@@ -9,6 +9,7 @@ local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
 task.wait(5)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
 task.wait(3)
+
 -- БЛОК СОЗДАНИЯ ГУИ (Вставь в начало)
 local function createNotify()
     local sg = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
@@ -41,9 +42,147 @@ local function createNotify()
     
     return sg, main, sub
 end
-
 local gui, mainTxt, eggTxt = createNotify()
 
+-- 1. ДАННЫЕ ДЛЯ ТРЕКЕРА
+local startTime = tick()
+local initialPetCount = 0
+local sessionEggs = 0
+local tokenStats = {
+    ["Spring Pink Rose Token"] = {start = 0, current = 0, label = "Pink Rose"},
+    ["Spring Yellow Sunflower Token"] = {start = 0, current = 0, label = "Yellow Sunfl."},
+    ["Spring Red Tulip Token"] = {start = 0, current = 0, label = "Red Tulip"},
+    ["Spring Bluebell Token"] = {start = 0, current = 0, label = "Bluebell"},
+    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"}
+}
+
+-- Функция для форматирования времени
+local function formatTime(seconds)
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = math.floor(seconds % 60)
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+-- 2. ГУИ СТАТИСТИКИ (Справа по центру + Время)
+local function createStatsGui()
+    local sg = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
+    sg.Name = "TokenStatsGui"
+    sg.ResetOnSpawn = false
+
+    local frame = Instance.new("Frame", sg)
+    frame.Size = UDim2.new(0, 350, 0, 230) -- Еще чуть выше для времени
+    frame.Position = UDim2.new(1, -360, 0.5, -115) -- Справа по центру
+    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    frame.BackgroundTransparency = 0.3
+    Instance.new("UICorner", frame)
+
+    local list = Instance.new("UIListLayout", frame)
+    list.Padding = UDim.new(0, 5)
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+    local function createLine(id, color)
+        local lab = Instance.new("TextLabel", frame)
+        lab.Size = UDim2.new(0.9, 0, 0, 25)
+        lab.BackgroundTransparency = 1
+        lab.TextColor3 = color
+        lab.Font = Enum.Font.Code
+        lab.TextSize = 13
+        lab.TextXAlignment = Enum.TextXAlignment.Left
+        lab.Text = tokenStats[id].label .. ": 0 | 0 | 0/s"
+        return lab
+    end
+
+    local labels = {
+        ["Spring Pink Rose Token"] = createLine("Spring Pink Rose Token", Color3.fromRGB(255, 150, 200)),
+        ["Spring Yellow Sunflower Token"] = createLine("Spring Yellow Sunflower Token", Color3.fromRGB(255, 255, 100)),
+        ["Spring Red Tulip Token"] = createLine("Spring Red Tulip Token", Color3.fromRGB(255, 100, 100)),
+        ["Spring Bluebell Token"] = createLine("Spring Bluebell Token", Color3.fromRGB(100, 200, 255)),
+        ["Spring Egg Token"] = createLine("Spring Egg Token", Color3.fromRGB(255, 255, 255))
+    }
+    
+    local spacer = Instance.new("Frame", frame)
+    spacer.Size = UDim2.new(1, 0, 0, 5)
+    spacer.BackgroundTransparency = 1
+
+    local eggLabel = Instance.new("TextLabel", frame)
+    eggLabel.Size = UDim2.new(0.9, 0, 0, 25)
+    eggLabel.BackgroundTransparency = 1
+    eggLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    eggLabel.Font = Enum.Font.GothamBold
+    eggLabel.TextSize = 14
+    eggLabel.TextXAlignment = Enum.TextXAlignment.Left
+    eggLabel.Text = "Session Eggs: 0"
+
+    -- НОВАЯ СТРОКА: Session Time
+    local timeLabel = Instance.new("TextLabel", frame)
+    timeLabel.Size = UDim2.new(0.9, 0, 0, 25)
+    timeLabel.BackgroundTransparency = 1
+    timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    timeLabel.Font = Enum.Font.Code
+    timeLabel.TextSize = 13
+    timeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    timeLabel.Text = "Session Time: 00:00:00"
+
+    return sg, labels, eggLabel, timeLabel
+end
+
+local statsGui, labels, eggLabel, timeLabel = createStatsGui()
+
+-- 3. ЛОГИКА ОБНОВЛЕНИЯ
+task.spawn(function()
+    local Save = require(game:GetService("ReplicatedStorage").Library.Client.Save)
+    
+    local function getData()
+        local s = Save.Get()
+        if not s or not s.Inventory then return {}, {} end
+        local inv = s.Inventory
+        return inv.Misc or {}, inv.Pet or {}
+    end
+
+    -- Стартовые значения
+    local sMisc, sPets = getData()
+    for _, item in pairs(sMisc) do
+        if tokenStats[item.id] then tokenStats[item.id].start = item._am or 0 end
+    end
+    for _, pet in pairs(sPets) do
+        initialPetCount = initialPetCount + (pet._am or 1)
+    end
+
+    while task.wait(1) do
+        local cMisc, cPets = getData()
+        local elapsed = tick() - startTime
+        
+        -- Обновляем Время
+        timeLabel.Text = "Session Time: " .. formatTime(elapsed)
+
+        -- Обновляем Токены
+        for _, item in pairs(cMisc) do
+            local stats = tokenStats[item.id]
+            if stats then
+                stats.current = item._am or 0
+                local session = stats.current - stats.start
+                local perSec = session / elapsed
+                
+                labels[item.id].Text = string.format(
+                    "%s: %s | +%d | %.2f/s", 
+                    stats.label, 
+                    (stats.current > 1000 and string.format("%.1fK", stats.current/1000) or tostring(stats.current)),
+                    session, 
+                    perSec
+                )
+            end
+        end
+        
+        -- Обновляем Яйца
+        local currentTotalPets = 0
+        for _, pet in pairs(cPets) do
+            currentTotalPets = currentTotalPets + (pet._am or 1)
+        end
+        sessionEggs = currentTotalPets - initialPetCount
+        eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
+    end
+end)
 
 
 -- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
@@ -67,7 +206,7 @@ task.spawn(function()
     local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
     
     if zonePath then
-        task.wait(1)
+        task.wait(3)
         root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
         mainTxt.Text = "📍 Активация автофарма..."
     end
@@ -230,7 +369,7 @@ task.wait(1)
 -- ==========================================================
 
 task.spawn(function()
-    task.wait(16) 
+    task.wait(2) 
     
     if eggTxt then 
         eggTxt.Text = "🥚 Быстрое открытие яиц: ВКЛЮЧЕНО" 
