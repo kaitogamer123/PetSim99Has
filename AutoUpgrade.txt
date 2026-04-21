@@ -1,0 +1,65 @@
+-- ==========================================================
+-- УЛЬТИМАТИВНЫЙ МЕНЕДЖЕР: ПРОКАЧКА В МАКСИМУМ
+-- ==========================================================
+
+_G.AutoEasterManager = false
+task.wait(0.5)
+_G.AutoEasterManager = true
+
+task.spawn(function()
+    local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
+    local Save = require(Lib:WaitForChild("Client"):WaitForChild("Save"))
+    local Net = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
+    local UpgradeRemote = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("EventUpgrades: Purchase")
+
+    local upgradeTracks = {"CooldownAndAmount", "HatchSpeed", "Luck", "ShinyLuck"}
+    local luckBoosts = {"Huge", "Titanic", "Gargantuan"}
+    local tokenMapping = {
+        ["Spring Bluebell Token"] = "Bluebell",
+        ["Spring Red Tulip Token"] = "RedTulip",
+        ["Spring Pink Rose Token"] = "PinkRose",
+        ["Spring Yellow Sunflower Token"] = "Sunflower"
+    }
+
+    print("--- [MANAGER]: Режим 'ПРОКАЧКА В МАКСИМУМ' запущен ---")
+
+    while _G.AutoEasterManager do
+        pcall(function()
+            local inv = Save.Get().Inventory.Misc or {}
+
+            -- ШАГ 1: АПГРЕЙДЫ EGG 5 (СКУПАЕМ ВСЁ ДО УПОРА)
+            for _, track in ipairs(upgradeTracks) do
+                local upgradeId = "Easter2026Egg5" .. track 
+                
+                -- Цикл покупки до тех пор, пока сервер возвращает TRUE
+                local bought
+                repeat
+                    bought = UpgradeRemote:InvokeServer(upgradeId)
+                    if bought then
+                        print("🚀 [UPGRADE]: Куплен уровень для " .. track)
+                        task.wait(0.1) -- Минимальная задержка между покупками
+                    end
+                until not bought or not _G.AutoEasterManager
+            end
+
+            task.wait(1)
+
+            -- ШАГ 2: МАШИНА УДАЧИ (Остатки)
+            for _, item in pairs(inv) do
+                local internalKey = tokenMapping[item.id]
+                -- Оставляем 5000 токенов (запас на будущие уровни апгрейдов)
+                if internalKey and (item._am or 0) > 5000 then
+                    for _, boostType in ipairs(luckBoosts) do
+                        local success = Net.Invoke("Easter2026ChanceMachine_AddTime", boostType, internalKey, item._am)
+                        if success then
+                            print(string.format("✅ [LUCK]: Влито %d %s в %s", item._am, internalKey, boostType))
+                        end
+                        task.wait(0.1)
+                    end
+                end
+            end
+        end)
+
+        task.wait(180) -- Проверка каждые 3 минуты
+    end
+end)
