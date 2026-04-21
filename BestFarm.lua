@@ -6,51 +6,44 @@ local lp = game.Players.LocalPlayer
 local root = lp.Character:WaitForChild("HumanoidRootPart")
 local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
 
-task.wait(10)
-
+task.wait(5)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
+task.wait(3)
+-- БЛОК СОЗДАНИЯ ГУИ (Вставь в начало)
+local function createNotify()
+    local sg = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+    sg.Name = "FarmStatusGui"
+    sg.ResetOnSpawn = false
 
--- 1. ХУК ФУНКЦИЙ (Заменяем код анимации на пустоту)
-for _, v in pairs(getgc(true)) do
-    if type(v) == "table" and rawget(v, "Play") and type(v.Play) == "function" then
-        -- Ищем функцию Play внутри модулей, связанных с яйцами
-        local info = getinfo(v.Play)
-        if info.source:find("Egg") or info.source:find("Hatch") then
-            v.Play = function() return end
-        end
-    elseif type(v) == "function" then
-        local info = getinfo(v)
-        if info.name == "PlayEggAnimation" or info.name == "ShowHatch" then
-            hookfunction(v, function() return end)
-        end
-    end
+    local frame = Instance.new("Frame", sg)
+    frame.Size = UDim2.new(0, 320, 0, 75)
+    frame.Position = UDim2.new(0.5, -160, 0, 40)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    frame.BackgroundTransparency = 0.2
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+    
+    local main = Instance.new("TextLabel", frame)
+    main.Size = UDim2.new(1, 0, 0.6, 0)
+    main.BackgroundTransparency = 1
+    main.TextColor3 = Color3.new(1, 1, 1)
+    main.Font = Enum.Font.GothamBold
+    main.TextSize = 16
+    main.Text = "🔍 Инициализация..."
+
+    local sub = Instance.new("TextLabel", frame)
+    sub.Size = UDim2.new(1, 0, 0.4, 0)
+    sub.Position = UDim2.new(0, 0, 0.55, 0)
+    sub.BackgroundTransparency = 1
+    sub.TextColor3 = Color3.fromRGB(255, 215, 0)
+    sub.Font = Enum.Font.Gotham
+    sub.TextSize = 13
+    sub.Text = "🥚 Ожидание открытия яиц..." 
+    
+    return sg, main, sub
 end
 
--- 2. ПРИНУДИТЕЛЬНОЕ УДАЛЕНИЕ ВСЕХ ЧЕРНЫХ ЭКРАНОВ И ТЕКСТА
-task.spawn(function()
-    while task.wait() do
-        local pGui = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
-        if pGui then
-            -- Ищем всё, что перекрывает экран (ZIndex выше 100 обычно у анимаций)
-            for _, gui in pairs(pGui:GetChildren()) do
-                if gui:IsA("ScreenGui") and (gui.Name:find("Egg") or gui.Name:find("Hatch") or gui.Name:find("Scene")) then
-                    gui:Destroy()
-                end
-            end
-        end
-    end
-end)
+local gui, mainTxt, eggTxt = createNotify()
 
--- 3. РАЗБЛОКИРОВКА ИНТЕРФЕЙСА (Main)
--- Чтобы кнопки не исчезали во время открытия
-task.spawn(function()
-    local Library = require(game:GetService("ReplicatedStorage"):WaitForChild("Library"))
-    game:GetService("RunService").RenderStepped:Connect(function()
-        if Library.Variables then
-            Library.Variables.OpeningEgg = false
-        end
-    end)
-end)
 
 
 -- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
@@ -58,8 +51,7 @@ task.spawn(function()
     local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
     if portal then
         root.CFrame = portal.CFrame
-        print("[✓] Телепортирован к входу в ивент")
-    else
+            else
         print("[!] Вход в ивент не найден")
     end
 end)
@@ -70,7 +62,6 @@ pcall(function()
 end)
 
 
--- 4. ТЕЛЕПОРТ В ЦЕНТР БЛОКА (BREAK_ZONE 7) + 5 по Y
 task.spawn(function()
     -- Ждем появления зоны, так как ивент-локи грузятся отдельно
     local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
@@ -78,14 +69,19 @@ task.spawn(function()
     if zonePath then
         task.wait(1)
         root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
+        mainTxt.Text = "📍 Активация автофарма..."
     end
 end)
 
--- 5. ЗАПУСК ТВОЕГО БЫСТРОГО ФАРМА
-
--- 5. ЗАПУСК УМНОГО ФАРМА (Исправленная фильтрация)
+_G.MegaFarmSystem = false 
+task.wait(0.5)
 _G.MegaFarmSystem = true
+
 local ignoredZones = {} 
+local testingTarget = nil 
+local lastLogTime = 0
+local confirmedCount = 0 -- Переменная для счета зон
+local countdownStarted = false -- Чтобы отсчет не запустился дважды
 
 task.spawn(function()
     local Things = workspace:WaitForChild("__THINGS")
@@ -93,19 +89,17 @@ task.spawn(function()
     local Pets = Things:WaitForChild("Pets")
     local Orbs = Things:WaitForChild("Orbs")
     
-    local Active = Things:WaitForChild("__INSTANCE_CONTAINER"):WaitForChild("Active")
-    local EasterEvent = Active:WaitForChild("EasterHatchEvent", 20)
-    local ZonesFolder = EasterEvent and EasterEvent:WaitForChild("BREAK_ZONES", 10)
+    local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
+    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
 
     local function getZoneOfPart(part)
-        if not ZonesFolder then return nil end
-        local hp = part:FindFirstChild("Hitbox")
+        local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
         if not hp then return nil end
         local pPos = hp.Position
         for _, zone in pairs(ZonesFolder:GetChildren()) do
             local size, pos = zone.Size, zone.Position
-            if pPos.X >= pos.X - size.X/2 and pPos.X <= pos.X + size.X/2 and
-               pPos.Z >= pos.Z - size.Z/2 and pPos.Z <= pos.Z + size.Z/2 then
+            if pPos.X >= pos.X - size.X/2 - 10 and pPos.X <= pos.X + size.X/2 + 10 and
+               pPos.Z >= pos.Z - size.Z/2 - 10 and pPos.Z <= pos.Z + size.Z/2 + 10 then
                 return zone.Name
             end
         end
@@ -114,52 +108,77 @@ task.spawn(function()
 
     while _G.MegaFarmSystem do
         pcall(function()
-            -- Сбор сфер
+            -- 1. Сбор сфер
             local orbIds = {}
             for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
             if #orbIds > 0 then Network["Orbs: Collect"]:FireServer(orbIds) end
             
             local petIds = {}
             for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
-            
-            -- ШАГ 1: Собираем ТОЛЬКО рабочие или проверяемые цели
-            local rawBreakables = Breakables:GetChildren()
-            local validTargets = {}
+            local allTargets = Breakables:GetChildren()
 
-            for _, target in pairs(rawBreakables) do
-                if target:FindFirstChild("Hitbox") then
-                    local zoneName = getZoneOfPart(target)
-                    
-                    -- Если зона новая - добавляем в тест
-                    if zoneName and ignoredZones[zoneName] == nil then
-                        ignoredZones[zoneName] = "checking"
-                        task.delay(1, function()
-                            if target and target.Parent == Breakables then
-                                ignoredZones[zoneName] = true -- Зона не ломается
+            -- 2. ТЕСТ ЗОН И ОБНОВЛЕНИЕ ГУИ
+            if not testingTarget then
+                for _, t in pairs(allTargets) do
+                    local zName = getZoneOfPart(t)
+                    if zName and ignoredZones[zName] == nil then
+                        testingTarget = t
+                        ignoredZones[zName] = "checking"
+                        
+                        task.delay(5, function() 
+                            if testingTarget and testingTarget.Parent == Breakables then
+                                ignoredZones[zName] = true
                             else
-                                ignoredZones[zoneName] = false -- Зона рабочая
+                                ignoredZones[zName] = false
+                                confirmedCount = confirmedCount + 1 -- Плюсуем зону
+                                
+                                -- ОБНОВЛЯЕМ ТЕКСТ В ГУИ
+                                if confirmedCount < 4 then
+                                    mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4"
+                                else
+                                    -- ЗАПУСКАЕМ ОТСЧЕТ, КОГДА НАШЛИ 4
+                                    if not countdownStarted then
+                                        countdownStarted = true
+                                        task.spawn(function()
+                                            for i = 10, 1, -1 do
+                                                mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i
+                                                task.wait(1)
+                                            end
+                                            gui:Destroy()
+                                        end)
+                                    end
+                                end
                             end
+                            testingTarget = nil
                         end)
-                    end
-
-                    -- В validTargets попадают только:
-                    -- 1. Объекты без зоны
-                    -- 2. Объекты из рабочих зон (false)
-                    -- 3. Объекты из зон на проверке (checking)
-                    if not zoneName or ignoredZones[zoneName] == false or ignoredZones[zoneName] == "checking" then
-                        table.insert(validTargets, target)
+                        break
                     end
                 end
             end
 
-            -- ШАГ 2: Атакуем только отфильтрованные цели
-            if #validTargets > 0 and #petIds > 0 then
-                local data = {}
-                for _, pId in ipairs(petIds) do
-                    local target = validTargets[math.random(1, #validTargets)]
-                    data[pId] = target.Name
+            local data = {}
+            local validTargets = {}
+            for _, t in pairs(allTargets) do
+                local zName = getZoneOfPart(t)
+                if not zName or ignoredZones[zName] == false then
+                    table.insert(validTargets, t)
                 end
+            end
+
+            for _, pId in ipairs(petIds) do
+                if testingTarget then
+                    data[pId] = testingTarget.Name
+                elseif #validTargets > 0 then
+                    data[pId] = validTargets[math.random(1, #validTargets)].Name
+                end
+            end
+
+            if next(data) then
                 Network.Breakables_JoinPetBulk:FireServer(data)
+            end
+
+            if tick() - lastLogTime >= 1 then
+                lastLogTime = tick()
             end
         end)
         task.wait(0.2)
@@ -168,15 +187,11 @@ end)
 
 
 
-
-
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Library = ReplicatedStorage:WaitForChild("Library")
 local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
 
--- Функция для твоего хаба
-_G.AutoFarmEnabled = true -- Эту переменную привяжи к кнопке
+_G.AutoFarmEnabled = true
 
 task.spawn(function()
     while true do
@@ -199,8 +214,7 @@ task.spawn(function()
     end
 end)
 
-
--- 3. ТЕЛЕПОРТ НА ЛОКАЦИЮ ИВЕНТА
+-- 3. TP HATCHING ZONE
 task.wait(15)
 pcall(function()
     local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
@@ -210,26 +224,29 @@ pcall(function()
     end
 end)
 task.wait(1)
-local RS = game:GetService("ReplicatedStorage")
 
-local network     = RS:WaitForChild("Network", 10)
-local invokeRemote = network:WaitForChild("Instancing_InvokeCustomFromClient", 10)
-local fireRemote  = network:FindFirstChild("Instancing_FireCustomFromClient")
+-- ==========================================================
+-- 6. ФИНАЛЬНЫЙ БЛОК: ОТКРЫТИЕ ЯИЦ (ИСПРАВЛЕНО)
+-- ==========================================================
 
-local instanceID = "EasterHatchEvent"
-local hatchArg   = "HatchRequest"
-local count      = 0
-local running    = true
+task.spawn(function()
+    task.wait(16) 
+    
+    if eggTxt then 
+        eggTxt.Text = "🥚 Быстрое открытие яиц: ВКЛЮЧЕНО" 
+    end
 
--- МЕТОД 1: FireServer потоки (быстрые, но с минимальной паузой 0.05)
-local args = {
-    "EasterHatchEvent",
-    "HatchRequest"
-}
+    local eggNet = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
+    local eggArgs = {"EasterHatchEvent", "HatchRequest"}
 
-local network = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
--- Создаем бесконечный цикл
-while true do
-    network:InvokeServer(unpack(args))
-    task.wait(0.1) -- Задержка в 0.1 секунды, чтобы игра не крашнулась и сервер не кикнул за спам
-end
+    while true do
+        local success, err = pcall(function()
+            eggNet:InvokeServer(unpack(eggArgs))
+        end)
+        if not success then
+            warn("Ошибка открытия яиц: " .. tostring(err))
+            task.wait(1) -- Пауза при ошибке, чтобы не спамить
+        end
+        task.wait(0.01) -- Оптимальная задержка
+    end
+end)
