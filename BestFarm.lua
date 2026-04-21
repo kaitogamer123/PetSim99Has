@@ -407,3 +407,49 @@ task.spawn(function()
         task.wait(0.01) -- Оптимальная задержка
     end
 end)
+-- ==========================================================
+-- АВТО-УДАЧА: ПОПЫТКА №99 (ПРЯМОЙ ВЫЗОВ ПО МОДУЛЮ)
+-- ==========================================================
+
+_G.AutoEasterLuck = false 
+task.wait(0.5)
+_G.AutoEasterLuck = true
+
+task.spawn(function()
+    local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
+    local Save = require(Lib:WaitForChild("Client"):WaitForChild("Save"))
+    local Net = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
+
+    -- Данные строго из v1
+    local boosts = { "Huge", "Titanic", "Gargantuan" }
+    local tokenMapping = {
+        ["Spring Bluebell Token"] = "Bluebell",
+        ["Spring Red Tulip Token"] = "RedTulip",
+        ["Spring Pink Rose Token"] = "PinkRose",
+        ["Spring Yellow Sunflower Token"] = "Sunflower"
+    }
+
+    while _G.AutoEasterLuck do
+        pcall(function()
+            local inventory = Save.Get().Inventory
+            local misc = inventory and inventory.Misc or {}
+            local foundAny = false
+
+            for _, item in pairs(misc) do
+                local internalKey = tokenMapping[item.id]
+                
+                if internalKey and (item._am or 0) > 0 then
+                    foundAny = true
+                    for _, boostType in ipairs(boosts) do
+                        -- ФОРМАТ СТРОГО ПО МОДУЛЮ: "Событие", ТипУдачи, ТокенКлюч, Кол-во
+                        -- Без "EasterHatchEvent", без таблиц. Просто 3 значения.
+                        local res = Net.Invoke("Easter2026ChanceMachine_AddTime", boostType, internalKey, item._am)
+                        end
+                        task.wait(0.2)
+                    end
+                end
+            end
+        end)
+        task.wait(300) 
+    end
+end)
