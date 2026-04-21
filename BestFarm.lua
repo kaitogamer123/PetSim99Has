@@ -7,6 +7,7 @@ local root = lp.Character:WaitForChild("HumanoidRootPart")
 local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
 
 task.wait(10)
+loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
 
 -- 1. ХУК ФУНКЦИЙ (Заменяем код анимации на пустоту)
 for _, v in pairs(getgc(true)) do
@@ -173,4 +174,4 @@ while true do
     network:InvokeServer(unpack(args))
     task.wait(0.1) -- Задержка в 0.1 секунды, чтобы игра не крашнулась и сервер не кикнул за спам
 end
-loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
+
