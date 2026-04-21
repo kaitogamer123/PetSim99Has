@@ -363,48 +363,47 @@ pcall(function()
     end
 end)
 task.wait(1)
-
 -- ==========================================================
--- 6. ФИНАЛЬНЫЙ БЛОК: ОТКРЫТИЕ ЯИЦ (ИСПРАВЛЕНО)
+-- 6. ФИНАЛЬНЫЙ БЛОК: ОТКРЫТИЕ ЯИЦ (АГРЕССИВНЫЙ MULTI-THREAD)
 -- ==========================================================
 
 task.spawn(function()
     task.wait(2) 
     
     if eggTxt then 
-        eggTxt.Text = "🥚 Быстрое открытие яиц: ВКЛЮЧЕНО" 
+        eggTxt.Text = "🥚 Быстрое открытие яиц: МАКСИМУМ" 
     end
+
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local remote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
-    local THREADS = 30
-    local DELAY = 0.02 
+    
+    -- НАСТРОЙКИ СКОРОСТИ
+    local THREADS = 30 -- Количество одновременных потоков
+    local DELAY = 0.01 -- Задержка между запросами в каждом потоке
 
+    -- Функция одного «удара» по серверу
     local function hatch()
-        remote:InvokeServer("EasterHatchEvent", "HatchRequest")
-        if math.random() < 0.125 then
-            remote:InvokeServer("EasterHatchEvent", "HatchRequest", math.random(1, 3))
-        end
+        pcall(function()
+            -- Основной запрос на открытие
+            remote:InvokeServer("EasterHatchEvent", "HatchRequest")
+            
+            -- Дополнительный рандомный запрос (как у тебя в коде)
+            if math.random() < 0.125 then
+                remote:InvokeServer("EasterHatchEvent", "HatchRequest", math.random(1, 3))
+            end
+        end)
     end
+
+    -- Запуск многопоточности
+    print("--- [HATCHER]: Запуск " .. THREADS .. " потоков открытия... ---")
+    
     for i = 1, THREADS do
         task.spawn(function()
+            -- Каждый поток работает независимо и максимально быстро
             while true do
                 hatch()
                 task.wait(DELAY)
             end
         end)
     end
-    local eggNet = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
-    local eggArgs = {"EasterHatchEvent", "HatchRequest"}
-
-    while true do
-        local success, err = pcall(function()
-            eggNet:InvokeServer(unpack(eggArgs))
-        end)
-        if not success then
-            warn("Ошибка открытия яиц: " .. tostring(err))
-            task.wait(1) -- Пауза при ошибке, чтобы не спамить
-        end
-        task.wait(0.01) -- Оптимальная задержка
-    end
 end)
-
