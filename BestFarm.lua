@@ -52,9 +52,15 @@ end)
 
 
 -- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
-task.wait(2)
-root.CFrame = CFrame.new(-9954.97949, 25.5751915, -280.856354, -2.03847885e-05, -0.999959171, 0.00903366227, 0.99999994, -2.03847885e-05, 9.22009349e-08, 9.22009349e-08, 0.00903366227, 0.999959171)
-
+task.spawn(function()
+    local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
+    if portal then
+        root.CFrame = portal.CFrame
+        print("[✓] Телепортирован к входу в ивент")
+    else
+        print("[!] Вход в ивент не найден")
+    end
+end)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
 task.wait(3)
 pcall(function()
@@ -135,8 +141,13 @@ end)
 
 -- 3. ТЕЛЕПОРТ НА ЛОКАЦИЮ ИВЕНТА
 task.wait(15)
-root.CFrame = CFrame.new(-18468.873, 15.2551775, -29149.5234, -0.500557363, 0.0208446495, 0.865452468, -0.000214802058, 0.999707043, -0.0242024418, -0.865703464, -0.0123006115, -0.500406206)
-
+pcall(function()
+    local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
+    if hatchZone then
+        root.CFrame = hatchZone.CFrame
+        print("[✓] Телепортирован в HatchingZone")
+    end
+end)
 task.wait(1)
 local RS = game:GetService("ReplicatedStorage")
 
@@ -150,48 +161,16 @@ local count      = 0
 local running    = true
 
 -- МЕТОД 1: FireServer потоки (быстрые, но с минимальной паузой 0.05)
-if fireRemote then
-    print("[✓] FireCustom найден - запускаем быстрые потоки")
-    for i = 1, 8 do
-        task.spawn(function()
-            while running do
-                pcall(function()
-                    fireRemote:FireServer(instanceID, hatchArg)
-                end)
-                count += 1
-                task.wait(0.05) -- 20 раз/сек на поток = 160/сек суммарно
-                                -- без этого глушит все remotes
-            end
-        end)
-    end
-else
-    print("[!] FireCustom не найден")
+local args = {
+    "EasterHatchEvent",
+    "HatchRequest"
+}
+
+local network = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
+
+-- Создаем бесконечный цикл
+while true do
+    network:InvokeServer(unpack(args))
+    task.wait(0.1) -- Задержка в 0.1 секунды, чтобы игра не крашнулась и сервер не кикнул за спам
 end
-
--- МЕТОД 2: InvokeServer потоки (сами блокируются - без паузы безопасно)
-for i = 1, 6 do
-    task.spawn(function()
-        while running do
-            pcall(function()
-                invokeRemote:InvokeServer(instanceID, hatchArg)
-            end)
-            count += 1
-        end
-    end)
-end
-
--- Статистика
-local start = tick()
-task.spawn(function()
-    local lastCount = 0
-    while running do
-        task.wait(1)
-        local rate = count - lastCount
-        lastCount = count
-        print(string.format("🥚 %d/сек | Всего: %d", rate, count))
-    end
-end)
-
-print("✅ Запущено: 8 Fire + 6 Invoke потоков")
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/kaitogamer123/PetSim99Has/refs/heads/main/AutoFlag.lua"))()
