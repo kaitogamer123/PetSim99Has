@@ -196,7 +196,7 @@ task.spawn(function()
     end
 end)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
-task.wait(3)
+task.wait(7)
 pcall(function()
     Network.AutoFarm_Request:InvokeServer(true)
 end)
@@ -355,7 +355,7 @@ task.spawn(function()
 end)
 
 -- 3. TP HATCHING ZONE
-task.wait(15)
+task.wait(20)
 pcall(function()
     local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
     if hatchZone then
