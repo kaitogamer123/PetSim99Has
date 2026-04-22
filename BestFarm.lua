@@ -147,38 +147,32 @@ task.spawn(function()
         eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
     end
 end)
--- ==========================================================
--- 1. ЛОГИКА ПЕРЕМЕЩЕНИЯ (УМНЫЙ ТЕЛЕПОРТ)
--- ==========================================================
+-- 1. ТЕЛЕПОРТ В ПОРТАЛ (Твоя оригинальная задержка)
 task.spawn(function()
-    -- Вход в портал (обязательно для всех)
     local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
-    if portal then 
-        root.CFrame = portal.CFrame 
-        task.wait(5) -- Ждем прогрузки ивента
+    if portal then
+        root.CFrame = portal.CFrame
     end
+end)
 
-    -- РАСПРЕДЕЛЕНИЕ: Куда лететь дальше?
+task.wait(3)
+pcall(function()
+    Net.Invoke("AutoFarm_Request", true)
+end)
+
+-- 2. ТВОЯ ОРИГИНАЛЬНАЯ ЛОГИКА ПОИСКА ЗОН
+task.spawn(function()
     if getCfg("FarmSettings", "MegaFarm", true) then
-        -- Если включен фарм - летим на 7 зону
         local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
-        if zonePath then 
+        if zonePath then
+            task.wait(3)
             root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
-            if mainTxt then mainTxt.Text = "📍 Прибыли на фарм (Зона 7)" end
-        end
-    elseif getCfg("EasterSettings", "AutoHatch", true) then
-        -- Если фарм выключен, но яйца включены - летим к яйцам
-        local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("1 | Cloud Meadow", 10).INTERACT.HatchingZone
-        if hatchZone then 
-            root.CFrame = hatchZone.CFrame 
-            if mainTxt then mainTxt.Text = "🥚 Прибыли к яйцам" end
+            if mainTxt then mainTxt.Text = "📍 Активация автофарма..." end
         end
     end
 end)
 
--- ==========================================================
--- 2. ТВОЙ МЕГАФАРМ (ПОЛНАЯ СОХРАНЕННАЯ МЕХАНИКА)
--- ==========================================================
+-- ПЕРЕМЕННЫЕ ФАРМА (Твои оригинальные)
 local ignoredZones = {} 
 local testingTarget = nil 
 local confirmedCount = 0 
@@ -191,9 +185,10 @@ task.spawn(function()
     local Orbs = Things:WaitForChild("Orbs")
     
     while true do
+        -- Работает только если MegaFarm включен
         if getCfg("FarmSettings", "MegaFarm", true) then
             pcall(function()
-                local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 10)
+                local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
                 local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
 
                 local function getZoneOfPart(part)
@@ -219,20 +214,35 @@ task.spawn(function()
                 for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
                 local allTargets = Breakables:GetChildren()
 
-                -- Твоя логика теста зон
+                -- ТВОЯ ПРОВЕРКА ЗОН (ВОЗВРАЩЕНА)
                 if not testingTarget then
                     for _, t in pairs(allTargets) do
                         local zName = getZoneOfPart(t)
                         if zName and ignoredZones[zName] == nil then
                             testingTarget = t
                             ignoredZones[zName] = "checking"
+                            
                             task.delay(5, function() 
                                 if testingTarget and testingTarget.Parent == Breakables then
                                     ignoredZones[zName] = true
                                 else
                                     ignoredZones[zName] = false
                                     confirmedCount = confirmedCount + 1
-                                    if mainTxt then mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4" end
+                                    
+                                    if confirmedCount < 4 then
+                                        if mainTxt then mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4" end
+                                    else
+                                        if not countdownStarted then
+                                            countdownStarted = true
+                                            task.spawn(function()
+                                                for i = 10, 1, -1 do
+                                                    if mainTxt then mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i end
+                                                    task.wait(1)
+                                                end
+                                                if statusGui then statusGui:Destroy() end
+                                            end)
+                                        end
+                                    end
                                 end
                                 testingTarget = nil
                             end)
@@ -245,17 +255,40 @@ task.spawn(function()
                 local validTargets = {}
                 for _, t in pairs(allTargets) do
                     local zName = getZoneOfPart(t)
-                    if not zName or ignoredZones[zName] == false then table.insert(validTargets, t) end
+                    if not zName or ignoredZones[zName] == false then
+                        table.insert(validTargets, t)
+                    end
                 end
 
                 for _, pId in ipairs(petIds) do
-                    if testingTarget then data[pId] = testingTarget.Name
-                    elseif #validTargets > 0 then data[pId] = validTargets[math.random(1, #validTargets)].Name end
+                    if testingTarget then
+                        data[pId] = testingTarget.Name
+                    elseif #validTargets > 0 then
+                        data[pId] = validTargets[math.random(1, #validTargets)].Name
+                    end
                 end
-                if next(data) then Net.Fire("Breakables_JoinPetBulk", data) end
+
+                if next(data) then
+                    Net.Fire("Breakables_JoinPetBulk", data)
+                end
             end)
         end
         task.wait(0.2)
+    end
+end)
+
+-- 3. TP HATCHING ZONE (Твой оригинальный возврат через 15 сек)
+task.spawn(function()
+    task.wait(15)
+    -- Летим к яйцам только если AutoHatch включен
+    if getCfg("EasterSettings", "AutoHatch", true) then
+        pcall(function()
+            local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
+            if hatchZone then
+                root.CFrame = hatchZone.CFrame
+                print("[✓] Телепортирован в HatchingZone")
+            end
+        end)
     end
 end)
 
