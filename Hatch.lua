@@ -1,3 +1,5 @@
+print("fast hatch ready")
+
 task.wait(35)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
