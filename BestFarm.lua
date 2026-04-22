@@ -468,7 +468,7 @@ task.spawn(function()
     local remote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
     
     -- НАСТРОЙКИ СКОРОСТИ
-    local THREADS = 40 -- Количество одновременных потоков
+    local THREADS = 30 -- Количество одновременных потоков
     local DELAY = 0.0 -- Задержка между запросами в каждом потоке
 
     -- Функция одного «удара» по серверу
