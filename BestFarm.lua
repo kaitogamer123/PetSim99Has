@@ -1,14 +1,20 @@
-print("injected")
--- Ждем загрузку игры
-repeat task.wait() until game:IsLoaded()
-repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
+print("Injected: Part 1 (GUI & Stats)")
 
+-- 1. ОЖИДАНИЕ ЗАГРУЗКИ
+if not game:IsLoaded() then game.Loaded:Wait() end
 local lp = game.Players.LocalPlayer
-local root = lp.Character:WaitForChild("HumanoidRootPart")
-local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
+if not lp.Character then lp.CharacterAdded:Wait() end
 
-task.wait(5)
-loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
+-- 2. СЕРВИСЫ И МОДУЛИ
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local root = lp.Character:WaitForChild("HumanoidRootPart")
+local Net = require(ReplicatedStorage:WaitForChild("Library"):WaitForChild("Client"):WaitForChild("Network"))
+local Library = ReplicatedStorage:WaitForChild("Library")
+local Save = require(Library.Client.Save)
+local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
+
+-- 3. ФУНКЦИЯ КОНФИГА (ОБЯЗАТЕЛЬНО ТУТ)
 local function getCfg(category, value, default)
     if getgenv().Config and getgenv().Config[category] and getgenv().Config[category][value] ~= nil then
         return getgenv().Config[category][value]
@@ -16,11 +22,16 @@ local function getCfg(category, value, default)
     return default
 end
 
-task.wait(3)
+-- 4. ЗАГРУЗКА ВНЕШНЕГО МЕНЮ (ТВОЯ ССЫЛКА)
+task.spawn(function()
+    pcall(function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
+    end)
+end)
 
--- БЛОК СОЗДАНИЯ ГУИ (Вставь в начало)
+-- 5. СОЗДАНИЕ ГУИ СТАТУСА
 local function createNotify()
-    local sg = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+    local sg = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
     sg.Name = "FarmStatusGui"
     sg.ResetOnSpawn = false
 
@@ -50,9 +61,9 @@ local function createNotify()
     
     return sg, main, sub
 end
-local gui, mainTxt, eggTxt = createNotify()
+local statusGui, mainTxt, eggTxt = createNotify()
 
--- 1. ДАННЫЕ ДЛЯ ТРЕКЕРА
+-- 6. ТРЕКЕР ТОКЕНОВ И ВРЕМЕНИ
 local startTime = tick()
 local initialPetCount = 0
 local sessionEggs = 0
@@ -64,7 +75,6 @@ local tokenStats = {
     ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"}
 }
 
--- Функция для форматирования времени
 local function formatTime(seconds)
     local h = math.floor(seconds / 3600)
     local m = math.floor((seconds % 3600) / 60)
@@ -72,161 +82,112 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
--- 2. ГУИ СТАТИСТИКИ (Справа по центру + Время)
 local function createStatsGui()
-    local sg = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
+    local sg = Instance.new("ScreenGui", lp.PlayerGui)
     sg.Name = "TokenStatsGui"
     sg.ResetOnSpawn = false
-
     local frame = Instance.new("Frame", sg)
-    frame.Size = UDim2.new(0, 350, 0, 230) -- Еще чуть выше для времени
-    frame.Position = UDim2.new(1, -360, 0.5, -115) -- Справа по центру
+    frame.Size = UDim2.new(0, 350, 0, 230)
+    frame.Position = UDim2.new(1, -360, 0.5, -115)
     frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     frame.BackgroundTransparency = 0.3
     Instance.new("UICorner", frame)
+    local list = Instance.new("UIListLayout", frame); list.Padding = UDim.new(0, 5); list.HorizontalAlignment = "Center"
 
-    local list = Instance.new("UIListLayout", frame)
-    list.Padding = UDim.new(0, 5)
-    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-    local function createLine(id, color)
+    local labels = {}
+    for id, info in pairs(tokenStats) do
         local lab = Instance.new("TextLabel", frame)
-        lab.Size = UDim2.new(0.9, 0, 0, 25)
-        lab.BackgroundTransparency = 1
-        lab.TextColor3 = color
-        lab.Font = Enum.Font.Code
-        lab.TextSize = 13
-        lab.TextXAlignment = Enum.TextXAlignment.Left
-        lab.Text = tokenStats[id].label .. ": 0 | 0 | 0/s"
-        return lab
+        lab.Size = UDim2.new(0.9, 0, 0, 25); lab.BackgroundTransparency = 1; lab.Font = "Code"; lab.TextSize = 13; lab.TextXAlignment = "Left"
+        lab.TextColor3 = Color3.new(1,1,1) -- Цвет настроится в цикле обновления
+        labels[id] = lab
     end
-
-    local labels = {
-        ["Spring Pink Rose Token"] = createLine("Spring Pink Rose Token", Color3.fromRGB(255, 150, 200)),
-        ["Spring Yellow Sunflower Token"] = createLine("Spring Yellow Sunflower Token", Color3.fromRGB(255, 255, 100)),
-        ["Spring Red Tulip Token"] = createLine("Spring Red Tulip Token", Color3.fromRGB(255, 100, 100)),
-        ["Spring Bluebell Token"] = createLine("Spring Bluebell Token", Color3.fromRGB(100, 200, 255)),
-        ["Spring Egg Token"] = createLine("Spring Egg Token", Color3.fromRGB(255, 255, 255))
-    }
     
-    local spacer = Instance.new("Frame", frame)
-    spacer.Size = UDim2.new(1, 0, 0, 5)
-    spacer.BackgroundTransparency = 1
-
     local eggLabel = Instance.new("TextLabel", frame)
-    eggLabel.Size = UDim2.new(0.9, 0, 0, 25)
-    eggLabel.BackgroundTransparency = 1
-    eggLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-    eggLabel.Font = Enum.Font.GothamBold
-    eggLabel.TextSize = 14
-    eggLabel.TextXAlignment = Enum.TextXAlignment.Left
-    eggLabel.Text = "Session Eggs: 0"
+    eggLabel.Size = UDim2.new(0.9, 0, 0, 25); eggLabel.BackgroundTransparency = 1; eggLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+    eggLabel.Font = "GothamBold"; eggLabel.TextSize = 14; eggLabel.TextXAlignment = "Left"
 
-    -- НОВАЯ СТРОКА: Session Time
     local timeLabel = Instance.new("TextLabel", frame)
-    timeLabel.Size = UDim2.new(0.9, 0, 0, 25)
-    timeLabel.BackgroundTransparency = 1
-    timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    timeLabel.Font = Enum.Font.Code
-    timeLabel.TextSize = 13
-    timeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    timeLabel.Text = "Session Time: 00:00:00"
+    timeLabel.Size = UDim2.new(0.9, 0, 0, 25); timeLabel.BackgroundTransparency = 1; timeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    timeLabel.Font = "Code"; timeLabel.TextSize = 13; timeLabel.TextXAlignment = "Left"
 
     return sg, labels, eggLabel, timeLabel
 end
 
 local statsGui, labels, eggLabel, timeLabel = createStatsGui()
 
--- 3. ЛОГИКА ОБНОВЛЕНИЯ
+-- 7. ЦИКЛ ОБНОВЛЕНИЯ СТАТИСТИКИ
 task.spawn(function()
-    local Save = require(game:GetService("ReplicatedStorage").Library.Client.Save)
-    
     local function getData()
         local s = Save.Get()
         if not s or not s.Inventory then return {}, {} end
-        local inv = s.Inventory
-        return inv.Misc or {}, inv.Pet or {}
+        return s.Inventory.Misc or {}, s.Inventory.Pet or {}
     end
 
-    -- Стартовые значения
     local sMisc, sPets = getData()
-    for _, item in pairs(sMisc) do
-        if tokenStats[item.id] then tokenStats[item.id].start = item._am or 0 end
-    end
-    for _, pet in pairs(sPets) do
-        initialPetCount = initialPetCount + (pet._am or 1)
-    end
+    for _, item in pairs(sMisc) do if tokenStats[item.id] then tokenStats[item.id].start = item._am or 0 end end
+    for _, pet in pairs(sPets) do initialPetCount = initialPetCount + (pet._am or 1) end
 
     while task.wait(1) do
         local cMisc, cPets = getData()
         local elapsed = tick() - startTime
-        
-        -- Обновляем Время
         timeLabel.Text = "Session Time: " .. formatTime(elapsed)
 
-        -- Обновляем Токены
-        for _, item in pairs(cMisc) do
-            local stats = tokenStats[item.id]
-            if stats then
-                stats.current = item._am or 0
-                local session = stats.current - stats.start
-                local perSec = session / elapsed
-                
-                labels[item.id].Text = string.format(
-                    "%s: %s | +%d | %.2f/s", 
-                    stats.label, 
-                    (stats.current > 1000 and string.format("%.1fK", stats.current/1000) or tostring(stats.current)),
-                    session, 
-                    perSec
-                )
+        for id, lab in pairs(labels) do
+            local found = false
+            for _, item in pairs(cMisc) do
+                if item.id == id then
+                    local stats = tokenStats[id]
+                    stats.current = item._am or 0
+                    local session = stats.current - stats.start
+                    lab.Text = string.format("%s: %s | +%d | %.2f/s", stats.label, (stats.current > 1000 and string.format("%.1fK", stats.current/1000) or tostring(stats.current)), session, session/elapsed)
+                    found = true break
+                end
             end
+            if not found then lab.Text = tokenStats[id].label .. ": 0 | 0 | 0/s" end
         end
         
-        -- Обновляем Яйца
         local currentTotalPets = 0
-        for _, pet in pairs(cPets) do
-            currentTotalPets = currentTotalPets + (pet._am or 1)
-        end
+        for _, pet in pairs(cPets) do currentTotalPets = currentTotalPets + (pet._am or 1) end
         sessionEggs = currentTotalPets - initialPetCount
         eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
     end
 end)
-
-
--- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
+-- ==========================================================
+-- 1. ЛОГИКА ПЕРЕМЕЩЕНИЯ (УМНЫЙ ТЕЛЕПОРТ)
+-- ==========================================================
 task.spawn(function()
+    -- Вход в портал (обязательно для всех)
     local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
-    if portal then
-        root.CFrame = portal.CFrame
-            else
-        print("[!] Вход в ивент не найден")
+    if portal then 
+        root.CFrame = portal.CFrame 
+        task.wait(5) -- Ждем прогрузки ивента
+    end
+
+    -- РАСПРЕДЕЛЕНИЕ: Куда лететь дальше?
+    if getCfg("FarmSettings", "MegaFarm", true) then
+        -- Если включен фарм - летим на 7 зону
+        local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
+        if zonePath then 
+            root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
+            if mainTxt then mainTxt.Text = "📍 Прибыли на фарм (Зона 7)" end
+        end
+    elseif getCfg("EasterSettings", "AutoHatch", true) then
+        -- Если фарм выключен, но яйца включены - летим к яйцам
+        local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("1 | Cloud Meadow", 10).INTERACT.HatchingZone
+        if hatchZone then 
+            root.CFrame = hatchZone.CFrame 
+            if mainTxt then mainTxt.Text = "🥚 Прибыли к яйцам" end
+        end
     end
 end)
--- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
-task.wait(3)
-pcall(function()
-    Network.AutoFarm_Request:InvokeServer(true)
-end)
 
-
-task.spawn(function()
-    -- Ждем появления зоны, так как ивент-локи грузятся отдельно
-    local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
-    
-    if zonePath then
-        task.wait(3)
-        root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
-        mainTxt.Text = "📍 Активация автофарма..."
-    end
-end)
-
-task.wait(0.5)
-
+-- ==========================================================
+-- 2. ТВОЙ МЕГАФАРМ (ПОЛНАЯ СОХРАНЕННАЯ МЕХАНИКА)
+-- ==========================================================
 local ignoredZones = {} 
 local testingTarget = nil 
-local lastLogTime = 0
-local confirmedCount = 0 -- Переменная для счета зон
-local countdownStarted = false -- Чтобы отсчет не запустился дважды
+local confirmedCount = 0 
+local countdownStarted = false 
 
 task.spawn(function()
     local Things = workspace:WaitForChild("__THINGS")
@@ -234,315 +195,151 @@ task.spawn(function()
     local Pets = Things:WaitForChild("Pets")
     local Orbs = Things:WaitForChild("Orbs")
     
-    local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
-    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
+    while true do
+        if getCfg("FarmSettings", "MegaFarm", true) then
+            pcall(function()
+                local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 10)
+                local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
 
-    local function getZoneOfPart(part)
-        local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
-        if not hp then return nil end
-        local pPos = hp.Position
-        for _, zone in pairs(ZonesFolder:GetChildren()) do
-            local size, pos = zone.Size, zone.Position
-            if pPos.X >= pos.X - size.X/2 - 10 and pPos.X <= pos.X + size.X/2 + 10 and
-               pPos.Z >= pos.Z - size.Z/2 - 10 and pPos.Z <= pos.Z + size.Z/2 + 10 then
-                return zone.Name
-            end
-        end
-        return nil
-    end
+                local function getZoneOfPart(part)
+                    local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
+                    if not hp then return nil end
+                    local pPos = hp.Position
+                    for _, zone in pairs(ZonesFolder:GetChildren()) do
+                        local size, pos = zone.Size, zone.Position
+                        if pPos.X >= pos.X - size.X/2 - 10 and pPos.X <= pos.X + size.X/2 + 10 and
+                           pPos.Z >= pos.Z - size.Z/2 - 10 and pPos.Z <= pos.Z + size.Z/2 + 10 then
+                            return zone.Name
+                        end
+                    end
+                    return nil
+                end
 
-    while _G.MegaFarmSystem do
-        pcall(function()
-            -- 1. Сбор сфер
-            local orbIds = {}
-            for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
-            if #orbIds > 0 then Network["Orbs: Collect"]:FireServer(orbIds) end
-            
-            local petIds = {}
-            for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
-            local allTargets = Breakables:GetChildren()
+                -- Сбор сфер
+                local orbIds = {}
+                for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
+                if #orbIds > 0 then Net.Fire("Orbs: Collect", orbIds) end
+                
+                local petIds = {}
+                for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
+                local allTargets = Breakables:GetChildren()
 
-            -- 2. ТЕСТ ЗОН И ОБНОВЛЕНИЕ ГУИ
-            if not testingTarget then
-                for _, t in pairs(allTargets) do
-                    local zName = getZoneOfPart(t)
-                    if zName and ignoredZones[zName] == nil then
-                        testingTarget = t
-                        ignoredZones[zName] = "checking"
-                        
-                        task.delay(5, function() 
-                            if testingTarget and testingTarget.Parent == Breakables then
-                                ignoredZones[zName] = true
-                            else
-                                ignoredZones[zName] = false
-                                confirmedCount = confirmedCount + 1 -- Плюсуем зону
-                                
-                                -- ОБНОВЛЯЕМ ТЕКСТ В ГУИ
-                                if confirmedCount < 4 then
-                                    mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4"
+                -- Твоя логика теста зон
+                if not testingTarget then
+                    for _, t in pairs(allTargets) do
+                        local zName = getZoneOfPart(t)
+                        if zName and ignoredZones[zName] == nil then
+                            testingTarget = t
+                            ignoredZones[zName] = "checking"
+                            task.delay(5, function() 
+                                if testingTarget and testingTarget.Parent == Breakables then
+                                    ignoredZones[zName] = true
                                 else
-                                    -- ЗАПУСКАЕМ ОТСЧЕТ, КОГДА НАШЛИ 4
-                                    if not countdownStarted then
-                                        countdownStarted = true
-                                        task.spawn(function()
-                                            for i = 10, 1, -1 do
-                                                mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i
-                                                task.wait(1)
-                                            end
-                                            gui:Destroy()
-                                        end)
-                                    end
+                                    ignoredZones[zName] = false
+                                    confirmedCount = confirmedCount + 1
+                                    if mainTxt then mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4" end
                                 end
-                            end
-                            testingTarget = nil
-                        end)
-                        break
+                                testingTarget = nil
+                            end)
+                            break
+                        end
                     end
                 end
-            end
 
-            local data = {}
-            local validTargets = {}
-            for _, t in pairs(allTargets) do
-                local zName = getZoneOfPart(t)
-                if not zName or ignoredZones[zName] == false then
-                    table.insert(validTargets, t)
+                local data = {}
+                local validTargets = {}
+                for _, t in pairs(allTargets) do
+                    local zName = getZoneOfPart(t)
+                    if not zName or ignoredZones[zName] == false then table.insert(validTargets, t) end
                 end
-            end
 
-            for _, pId in ipairs(petIds) do
-                if testingTarget then
-                    data[pId] = testingTarget.Name
-                elseif #validTargets > 0 then
-                    data[pId] = validTargets[math.random(1, #validTargets)].Name
+                for _, pId in ipairs(petIds) do
+                    if testingTarget then data[pId] = testingTarget.Name
+                    elseif #validTargets > 0 then data[pId] = validTargets[math.random(1, #validTargets)].Name end
                 end
-            end
-
-            if next(data) then
-                Network.Breakables_JoinPetBulk:FireServer(data)
-            end
-
-            if tick() - lastLogTime >= 1 then
-                lastLogTime = tick()
-            end
-        end)
+                if next(data) then Net.Fire("Breakables_JoinPetBulk", data) end
+            end)
+        end
         task.wait(0.2)
     end
 end)
 
-
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Library = ReplicatedStorage:WaitForChild("Library")
-local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
-
+-- ==========================================================
+-- 3. АВТО-УДАЧА И МЕНЕДЖЕР АПГРЕЙДОВ
+-- ==========================================================
 task.spawn(function()
-    while true do
-        if _G.AutoFarmEnabled then
-            -- Если автофарм еще не включен - включаем его официально
-            if not AutoFarmCmds.IsEnabled() then
-                pcall(function()
-                    AutoFarmCmds.Enable()
-                end)
-            end
-        else
-            -- Если ты выключил чит - выключаем и автофарм игры
-            if AutoFarmCmds.IsEnabled() then
-                pcall(function()
-                    AutoFarmCmds.Disable()
-                end)
-            end
-        end
-        task.wait(1) -- Проверяем статус раз в секунду
-    end
-end)
-
--- 3. TP HATCHING ZONE
-task.wait(15)
-pcall(function()
-    local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
-    if hatchZone then
-        root.CFrame = hatchZone.CFrame
-        print("[✓] Телепортирован в HatchingZone")
-    end
-end)
-task.wait(1)
--- ==========================================================
--- 6. ФИНАЛЬНЫЙ БЛОК: ОТКРЫТИЕ ЯИЦ (АГРЕССИВНЫЙ MULTI-THREAD)
--- ==========================================================
-
-task.spawn(function()
-    task.wait(2) 
-    
-    if eggTxt then 
-        eggTxt.Text = "🥚 Быстрое открытие яиц: МАКСИМУМ" 
-    end
-
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local remote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
-    
-    -- НАСТРОЙКИ СКОРОСТИ
-    local THREADS = 30 -- Количество одновременных потоков
-    local DELAY = 0.01 -- Задержка между запросами в каждом потоке
-
-    -- Функция одного «удара» по серверу
-    local function hatch()
-        pcall(function()
-            -- Основной запрос на открытие
-            remote:InvokeServer("EasterHatchEvent", "HatchRequest")
-            
-            -- Дополнительный рандомный запрос (как у тебя в коде)
-            if math.random() < 0.125 then
-                remote:InvokeServer("EasterHatchEvent", "HatchRequest", math.random(1, 3))
-            end
-        end)
-    end
-
-    -- Запуск многопоточности
-    print("--- [HATCHER]: Запуск " .. THREADS .. " потоков открытия... ---")
-    
-    for i = 1, THREADS do
-        task.spawn(function()
-            -- Каждый поток работает независимо и максимально быстро
-            while true do
-                hatch()
-                task.wait(DELAY)
-            end
-        end)
-    end
-end)
-
--- ==========================================================
--- АВТО-УДАЧА: ПОПЫТКА №99 (ПРЯМОЙ ВЫЗОВ ПО МОДУЛЮ)
--- ==========================================================
-
-
-task.wait(0.5)
-
-
-task.spawn(function()
-    local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
-    local Save = require(Lib:WaitForChild("Client"):WaitForChild("Save"))
-    local Net = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
-
-    -- Данные строго из v1
+    local upgradeTracks = {"CooldownAndAmount", "HatchSpeed", "Luck", "ShinyLuck"}
     local boosts = { "Huge", "Titanic", "Gargantuan" }
     local tokenMapping = {
-        ["Spring Bluebell Token"] = "Bluebell",
-        ["Spring Red Tulip Token"] = "RedTulip",
-        ["Spring Pink Rose Token"] = "PinkRose",
-        ["Spring Yellow Sunflower Token"] = "Sunflower"
+        ["Spring Bluebell Token"] = "Bluebell", ["Spring Red Tulip Token"] = "RedTulip",
+        ["Spring Pink Rose Token"] = "PinkRose", ["Spring Yellow Sunflower Token"] = "Sunflower"
     }
 
-    print("--- [LUCK]: Пробую прямой вызов (3 аргумента) ---")
-
-    while _G.AutoEasterLuck do
-        pcall(function()
-            local inventory = Save.Get().Inventory
-            local misc = inventory and inventory.Misc or {}
-            local foundAny = false
-
-            for _, item in pairs(misc) do
-                local internalKey = tokenMapping[item.id]
-                
-                if internalKey and (item._am or 0) > 0 then
-                    foundAny = true
-                    for _, boostType in ipairs(boosts) do
-                        -- ФОРМАТ СТРОГО ПО МОДУЛЮ: "Событие", ТипУдачи, ТокенКлюч, Кол-во
-                        -- Без "EasterHatchEvent", без таблиц. Просто 3 значения.
-                        local res = Net.Invoke("Easter2026ChanceMachine_AddTime", boostType, internalKey, item._am)
-                        
-                        if res then
-                            print(string.format("✅ [УДАЧА]: Влито %d %s в %s", item._am, internalKey, boostType))
-                        end
-                        task.wait(0.2)
-                    end
+    while true do
+        if getCfg("EasterSettings", "AutoManager", true) then
+            pcall(function()
+                for _, track in ipairs(upgradeTracks) do
+                    local upgradeId = "Easter2026Egg5" .. track 
+                    repeat task.wait(0.1) until not Net.Invoke("EventUpgrades: Purchase", upgradeId)
                 end
-            end
-        end)
-        task.wait(300) 
-    end
-end)
-
--- ==========================================================
--- УЛЬТИМАТИВНЫЙ МЕНЕДЖЕР: ПРОКАЧКА В МАКСИМУМ
--- ==========================================================
-
-
-task.spawn(function()
-    local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
-    local Save = require(Lib:WaitForChild("Client"):WaitForChild("Save"))
-    local Net = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
-    local UpgradeRemote = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("EventUpgrades: Purchase")
-
-    local upgradeTracks = {"CooldownAndAmount", "HatchSpeed", "Luck", "ShinyLuck"}
-    local luckBoosts = {"Huge", "Titanic", "Gargantuan"}
-    local tokenMapping = {
-        ["Spring Bluebell Token"] = "Bluebell",
-        ["Spring Red Tulip Token"] = "RedTulip",
-        ["Spring Pink Rose Token"] = "PinkRose",
-        ["Spring Yellow Sunflower Token"] = "Sunflower"
-    }
-
-    print("--- [MANAGER]: Режим 'ПРОКАЧКА В МАКСИМУМ' запущен ---")
-
-    while _G.AutoEasterManager do
-        pcall(function()
-            local inv = Save.Get().Inventory.Misc or {}
-
-            -- ШАГ 1: АПГРЕЙДЫ EGG 5 (СКУПАЕМ ВСЁ ДО УПОРА)
-            for _, track in ipairs(upgradeTracks) do
-                local upgradeId = "Easter2026Egg5" .. track 
-                
-                -- Цикл покупки до тех пор, пока сервер возвращает TRUE
-                local bought
-                repeat
-                    bought = UpgradeRemote:InvokeServer(upgradeId)
-                    if bought then
-                        print("🚀 [UPGRADE]: Куплен уровень для " .. track)
-                        task.wait(0.1) -- Минимальная задержка между покупками
-                    end
-                until not bought or not _G.AutoEasterManager
-            end
-
-            task.wait(1)
-
-            -- ШАГ 2: МАШИНА УДАЧИ (Остатки)
-            for _, item in pairs(inv) do
-                local internalKey = tokenMapping[item.id]
-                -- Оставляем 5000 токенов (запас на будущие уровни апгрейдов)
-                if internalKey and (item._am or 0) > 5000 then
-                    for _, boostType in ipairs(luckBoosts) do
-                        local success = Net.Invoke("Easter2026ChanceMachine_AddTime", boostType, internalKey, item._am)
-                        if success then
-                            print(string.format("✅ [LUCK]: Влито %d %s в %s", item._am, internalKey, boostType))
-                        end
-                        task.wait(0.1)
-                    end
-                end
-            end
-        end)
-
-        task.wait(180) -- Проверка каждые 3 минуты
-    end
-end)
-
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local remote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
-local THREADS = 30
-local DELAY = 0.02 
-local function hatch()
-    remote:InvokeServer("EasterHatchEvent", "HatchRequest")
-    if math.random() < 0.125 then
-        remote:InvokeServer("EasterHatchEvent", "HatchRequest", math.random(1, 3))
-    end
-end
-for i = 1, THREADS do
-    task.spawn(function()
-        while true do
-            hatch()
-            task.wait(DELAY)
+            end)
         end
-    end)
-end
+
+        if getCfg("EasterSettings", "AutoLuck", true) then
+            pcall(function()
+                local inv = Save.Get().Inventory.Misc or {}
+                local reserve = getCfg("EasterSettings", "TokenReserve", 5000)
+                for _, item in pairs(inv) do
+                    local key = tokenMapping[item.id]
+                    if key and (item._am or 0) > reserve then
+                        for _, bType in ipairs(boosts) do
+                            Net.Invoke("Easter2026ChanceMachine_AddTime", bType, key, item._am)
+                            task.wait(0.1)
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(180)
+    end
+end)
+
+-- ==========================================================
+-- 4. АГРЕССИВНОЕ ОТКРЫТИЕ ЯИЦ (ФИНАЛ)
+-- ==========================================================
+task.spawn(function()
+    task.wait(10)
+    local eggRemote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
+    
+    while true do
+        if getCfg("EasterSettings", "AutoHatch", true) then
+            local threads = getCfg("EasterSettings", "HatchThreads", 30)
+            for i = 1, threads do
+                task.spawn(function()
+                    pcall(function()
+                        eggRemote:InvokeServer("EasterHatchEvent", "HatchRequest")
+                        if math.random() < 0.125 then
+                            eggRemote:InvokeServer("EasterHatchEvent", "HatchRequest", math.random(1, 3))
+                        end
+                    end)
+                end)
+            end
+        end
+        task.wait(getCfg("EasterSettings", "HatchDelay", 0.01))
+    end
+end)
+
+-- ==========================================================
+-- 5. API АВТОФАРМА (ИСПРАВЛЕНО)
+-- ==========================================================
+task.spawn(function()
+    while true do
+        local wantEnabled = getCfg("FarmSettings", "AutoFarmAPI", true)
+        if wantEnabled then
+            if not AutoFarmCmds.IsEnabled() then pcall(function() AutoFarmCmds.Enable() end) end
+        else
+            if AutoFarmCmds.IsEnabled() then pcall(function() AutoFarmCmds.Disable() end) end
+        end
+        task.wait(1)
+    end
+end)
