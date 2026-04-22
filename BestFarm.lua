@@ -6,11 +6,9 @@ repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.C
 local lp = game.Players.LocalPlayer
 local root = lp.Character:WaitForChild("HumanoidRootPart")
 local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
-
-task.wait(5)
+task.wait(2)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
-task.wait(3)
-
+task.wait(2)
 -- БЛОК СОЗДАНИЯ ГУИ (Вставь в начало)
 local function createNotify()
     local sg = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
@@ -195,8 +193,102 @@ task.spawn(function()
         print("[!] Вход в ивент не найден")
     end
 end)
--- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
 
+
+task.wait(3)
+-- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
+--------------
+local RunService = game:GetService("RunService")
+local lp = game.Players.LocalPlayer
+local char = lp.Character or lp.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+-- 1. НАСТРОЙКИ
+local targetCFrame = CFrame.new(-18505.6094, -7.72793388, -29109.084, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+local fixedY = targetCFrame.Y - 3.5
+local offset = 3.5
+
+-- 2. ПОИСК СУЩЕСТВУЮЩИХ ПАДОВ (чтобы не спавнить новые)
+local followPad = workspace:FindFirstChild("FollowPad_Full")
+local staticYPad = workspace:FindFirstChild("FollowPad_XZ")
+
+-- Если вдруг их нет (первый запуск), создаем один раз
+if not followPad then
+    followPad = Instance.new("Part", workspace)
+    followPad.Name = "FollowPad_Full"
+    followPad.Size = Vector3.new(14, 1, 14)
+    followPad.Anchored = true
+    followPad.CanCollide = true
+    followPad.Transparency = 0.5
+    followPad.BrickColor = BrickColor.new("Bright red")
+    followPad.Material = Enum.Material.Neon
+end
+
+if not staticYPad then
+    staticYPad = Instance.new("Part", workspace)
+    staticYPad.Name = "FollowPad_XZ"
+    staticYPad.Size = Vector3.new(14, 1, 14)
+    staticYPad.Anchored = true
+    staticYPad.CanCollide = true
+    staticYPad.Transparency = 0.5
+    staticYPad.BrickColor = BrickColor.new("Electric blue")
+    staticYPad.Material = Enum.Material.Neon
+end
+
+-- 3. ФУНКЦИЯ ТЕЛЕПОРТА И ЧИСТКИ (Вызывается скриптом)
+local function executeAction()
+    -- Телепорт игрока
+    hrp.CFrame = targetCFrame
+    
+    -- Чистка (удаление текстур/партов)
+    pcall(function()
+        local active = workspace.__THINGS.__INSTANCE_CONTAINER.Active:FindFirstChild("EasterHatchEvent")
+        if active then
+            if active:FindFirstChild("ZONE_GROUND") then active.ZONE_GROUND:Destroy() end
+            local meadow = active:FindFirstChild("1 | Cloud Meadow")
+            if meadow then
+                if meadow:FindFirstChild("PARTS_LOD") then meadow.PARTS_LOD:Destroy() end
+                if meadow.INTERACT:FindFirstChild("DisplayZone") then meadow.INTERACT.DisplayZone:Destroy() end
+                if meadow.INTERACT:FindFirstChild("HatchingZone") then meadow.INTERACT.HatchingZone:Destroy() end
+                meadow:Destroy()
+            end
+        end
+        local fake = workspace.__THINGS:FindFirstChild("__FAKE_INSTANCE_GROUND")
+        if fake and fake:FindFirstChild("EasterHatchEvent") then fake.EasterHatchEvent:Destroy() end
+    end)
+    print("Действие выполнено: ТП и чистка завершены.")
+end
+
+-- 4. GUI КНОПКА (ОСТАВИЛ ДЛЯ РУЧНОГО ВЫЗОВА)
+local screenGui = lp.PlayerGui:FindFirstChild("TeleportGui") or Instance.new("ScreenGui", lp.PlayerGui)
+screenGui.Name = "TeleportGui"
+local tpBtn = screenGui:FindFirstChild("TPBtn") or Instance.new("TextButton", screenGui)
+tpBtn.Name = "TPBtn"
+tpBtn.Size = UDim2.new(0, 140, 0, 40)
+tpBtn.Position = UDim2.new(1, -160, 0, 20)
+tpBtn.Text = "TP TO START"
+tpBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+tpBtn.TextColor3 = Color3.new(1, 1, 1)
+tpBtn.Font = Enum.Font.SourceSansBold
+tpBtn.TextSize = 18
+
+tpBtn.MouseButton1Click:Connect(executeAction)
+
+-- 5. ЛОГИКА ДВИЖЕНИЯ
+RunService.RenderStepped:Connect(function()
+    if hrp and hrp.Parent then
+        followPad.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - offset, hrp.Position.Z)
+        staticYPad.CFrame = CFrame.new(hrp.Position.X, fixedY, hrp.Position.Z)
+        if hrp.AssemblyLinearVelocity.Y < -0.1 then
+            hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
+        end
+    end
+end)
+
+executeAction()
+
+---------------
+task.wait(1)
 task.spawn(function()
     -- Ждем появления зоны, так как ивент-локи грузятся отдельно
     local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
@@ -358,6 +450,7 @@ pcall(function()
         print("[✓] Телепортирован в HatchingZone")
     end
 end)
+executeAction()
 task.wait(1)
 -- ==========================================================
 -- 6. ФИНАЛЬНЫЙ БЛОК: ОТКРЫТИЕ ЯИЦ (АГРЕССИВНЫЙ MULTI-THREAD)
@@ -374,8 +467,8 @@ task.spawn(function()
     local remote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("Instancing_InvokeCustomFromClient")
     
     -- НАСТРОЙКИ СКОРОСТИ
-    local THREADS = 30 -- Количество одновременных потоков
-    local DELAY = 0.01 -- Задержка между запросами в каждом потоке
+    local THREADS = 40 -- Количество одновременных потоков
+    local DELAY = 0.0 -- Задержка между запросами в каждом потоке
 
     -- Функция одного «удара» по серверу
     local function hatch()
