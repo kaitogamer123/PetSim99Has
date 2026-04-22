@@ -171,8 +171,7 @@ task.spawn(function()
         end
     end
 end)
-
--- ПЕРЕМЕННЫЕ ФАРМА (Твои оригинальные)
+-- [[ ЧАСТЬ 2: ФАРМ И ЛОГИКА ЗОН ]]
 local ignoredZones = {} 
 local testingTarget = nil 
 local confirmedCount = 0 
@@ -184,28 +183,33 @@ task.spawn(function()
     local Pets = Things:WaitForChild("Pets")
     local Orbs = Things:WaitForChild("Orbs")
     
+    -- Ищем ивент ОДИН РАЗ перед циклом
+    local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 30)
+    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES", 10)
+
+    if not ZonesFolder then 
+        warn("!!! ЗОНЫ НЕ НАЙДЕНЫ, ПЕРЕЗАПУСТИ ИВЕНТ !!!")
+        return 
+    end
+
+    local function getZoneOfPart(part)
+        local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
+        if not hp then return nil end
+        local pPos = hp.Position
+        for _, zone in pairs(ZonesFolder:GetChildren()) do
+            local size, pos = zone.Size, zone.Position
+            if pPos.X >= pos.X - size.X/2 - 10 and pPos.X <= pos.X + size.X/2 + 10 and
+               pPos.Z >= pos.Z - size.Z/2 - 10 and pPos.Z <= pos.Z + size.Z/2 + 10 then
+                return zone.Name
+            end
+        end
+        return nil
+    end
+
     while true do
-        -- Работает только если MegaFarm включен
         if getCfg("FarmSettings", "MegaFarm", true) then
             pcall(function()
-                local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
-                local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
-
-                local function getZoneOfPart(part)
-                    local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
-                    if not hp then return nil end
-                    local pPos = hp.Position
-                    for _, zone in pairs(ZonesFolder:GetChildren()) do
-                        local size, pos = zone.Size, zone.Position
-                        if pPos.X >= pos.X - size.X/2 - 10 and pPos.X <= pos.X + size.X/2 + 10 and
-                           pPos.Z >= pos.Z - size.Z/2 - 10 and pPos.Z <= pos.Z + size.Z/2 + 10 then
-                            return zone.Name
-                        end
-                    end
-                    return nil
-                end
-
-                -- Сбор сфер
+                -- 1. Сбор сфер
                 local orbIds = {}
                 for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
                 if #orbIds > 0 then Net.Fire("Orbs: Collect", orbIds) end
@@ -214,7 +218,7 @@ task.spawn(function()
                 for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
                 local allTargets = Breakables:GetChildren()
 
-                -- ТВОЯ ПРОВЕРКА ЗОН (ВОЗВРАЩЕНА)
+                -- 2. ТВОЯ ПРОВЕРКА ЗОН
                 if not testingTarget then
                     for _, t in pairs(allTargets) do
                         local zName = getZoneOfPart(t)
@@ -228,20 +232,17 @@ task.spawn(function()
                                 else
                                     ignoredZones[zName] = false
                                     confirmedCount = confirmedCount + 1
+                                    if mainTxt then mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4" end
                                     
-                                    if confirmedCount < 4 then
-                                        if mainTxt then mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4" end
-                                    else
-                                        if not countdownStarted then
-                                            countdownStarted = true
-                                            task.spawn(function()
-                                                for i = 10, 1, -1 do
-                                                    if mainTxt then mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i end
-                                                    task.wait(1)
-                                                end
-                                                if statusGui then statusGui:Destroy() end
-                                            end)
-                                        end
+                                    if confirmedCount >= 4 and not countdownStarted then
+                                        countdownStarted = true
+                                        task.spawn(function()
+                                            for i = 10, 1, -1 do
+                                                if mainTxt then mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i end
+                                                task.wait(1)
+                                            end
+                                            if statusGui then statusGui:Destroy() end
+                                        end)
                                     end
                                 end
                                 testingTarget = nil
@@ -251,6 +252,7 @@ task.spawn(function()
                     end
                 end
 
+                -- 3. АТАКА ПЕТОВ
                 local data = {}
                 local validTargets = {}
                 for _, t in pairs(allTargets) do
@@ -268,9 +270,7 @@ task.spawn(function()
                     end
                 end
 
-                if next(data) then
-                    Net.Fire("Breakables_JoinPetBulk", data)
-                end
+                if next(data) then Net.Fire("Breakables_JoinPetBulk", data) end
             end)
         end
         task.wait(0.2)
