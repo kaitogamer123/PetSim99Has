@@ -198,6 +198,7 @@ end)
 task.wait(3)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
 --------------
+
 local RunService = game:GetService("RunService")
 local lp = game.Players.LocalPlayer
 local char = lp.Character or lp.CharacterAdded:Wait()
