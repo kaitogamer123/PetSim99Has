@@ -442,7 +442,7 @@ task.spawn(function()
 end)
 
 -- 3. TP HATCHING ZONE
-task.wait(20)
+task.wait(10)
 pcall(function()
     local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
     if hatchZone then
