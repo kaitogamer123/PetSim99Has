@@ -22,12 +22,7 @@ local function getCfg(category, value, default)
     return default
 end
 
--- 4. ЗАГРУЗКА ВНЕШНЕГО МЕНЮ (ТВОЯ ССЫЛКА)
-task.spawn(function()
-    pcall(function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
-    end)
-end)
+loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
 
 -- 5. СОЗДАНИЕ ГУИ СТАТУСА
 local function createNotify()
