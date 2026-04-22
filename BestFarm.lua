@@ -196,16 +196,11 @@ task.spawn(function()
     end
 end)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
-task.wait(7)
-pcall(function()
-    Network.AutoFarm_Request:InvokeServer(true)
-end)
-
 
 task.spawn(function()
     -- Ждем появления зоны, так как ивент-локи грузятся отдельно
     local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
-    
+        
     if zonePath then
         task.wait(3)
         root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
