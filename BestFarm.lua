@@ -147,50 +147,58 @@ task.spawn(function()
         eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
     end
 end)
--- 1. ТЕЛЕПОРТ В ПОРТАЛ (Твоя оригинальная задержка)
+-- [[ ПРИВЯЗКА К ТВОЕМУ CONFIG ]]
+local function getCfg(category, value, default)
+    if getgenv().Config and getgenv().Config[category] and getgenv().Config[category][value] ~= nil then
+        return getgenv().Config[category][value]
+    end
+    return default
+end
+
+-- 1. ТЕЛЕПОРТ В ПОРТАЛ (Твой оригинал)
 task.spawn(function()
     local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
     if portal then
         root.CFrame = portal.CFrame
+    else
+        print("[!] Вход в ивент не найден")
     end
 end)
 
+-- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
 task.wait(3)
 pcall(function()
-    Net.Invoke("AutoFarm_Request", true)
+    Net.Invoke("AutoFarm_Request", true) -- Используем Net из первой части
 end)
 
--- 2. ТВОЯ ОРИГИНАЛЬНАЯ ЛОГИКА ПОИСКА ЗОН
 task.spawn(function()
+    -- Летим на зону 7 (Твой оригинал)
     if getCfg("FarmSettings", "MegaFarm", true) then
         local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
         if zonePath then
-            task.wait(3)
+            task.wait(1)
             root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
             if mainTxt then mainTxt.Text = "📍 Активация автофарма..." end
         end
     end
 end)
--- [[ ЧАСТЬ 2: ФАРМ И ЛОГИКА ЗОН ]]
+
+-- ПЕРЕМЕННЫЕ (Твой оригинал)
 local ignoredZones = {} 
 local testingTarget = nil 
+local lastLogTime = 0
 local confirmedCount = 0 
 local countdownStarted = false 
 
+-- [[ ЦИКЛ МЕГАФАРМА ]]
 task.spawn(function()
     local Things = workspace:WaitForChild("__THINGS")
     local Breakables = Things:WaitForChild("Breakables")
     local Pets = Things:WaitForChild("Pets")
     local Orbs = Things:WaitForChild("Orbs")
     
-    -- Ищем ивент ОДИН РАЗ перед циклом
-    local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 30)
-    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES", 10)
-
-    if not ZonesFolder then 
-        warn("!!! ЗОНЫ НЕ НАЙДЕНЫ, ПЕРЕЗАПУСТИ ИВЕНТ !!!")
-        return 
-    end
+    local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
+    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
 
     local function getZoneOfPart(part)
         local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
@@ -206,6 +214,7 @@ task.spawn(function()
         return nil
     end
 
+    -- Проверка MegaFarm из конфига
     while true do
         if getCfg("FarmSettings", "MegaFarm", true) then
             pcall(function()
@@ -218,7 +227,7 @@ task.spawn(function()
                 for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
                 local allTargets = Breakables:GetChildren()
 
-                -- 2. ТВОЯ ПРОВЕРКА ЗОН
+                -- 2. ТЕСТ ЗОН И ОБНОВЛЕНИЕ ГУИ
                 if not testingTarget then
                     for _, t in pairs(allTargets) do
                         local zName = getZoneOfPart(t)
@@ -232,17 +241,22 @@ task.spawn(function()
                                 else
                                     ignoredZones[zName] = false
                                     confirmedCount = confirmedCount + 1
-                                    if mainTxt then mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4" end
                                     
-                                    if confirmedCount >= 4 and not countdownStarted then
-                                        countdownStarted = true
-                                        task.spawn(function()
-                                            for i = 10, 1, -1 do
-                                                if mainTxt then mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i end
-                                                task.wait(1)
+                                    if mainTxt then
+                                        if confirmedCount < 4 then
+                                            mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4"
+                                        else
+                                            if not countdownStarted then
+                                                countdownStarted = true
+                                                task.spawn(function()
+                                                    for i = 10, 1, -1 do
+                                                        mainTxt.Text = "🚀 Автофарм запущен! Закроюсь через " .. i
+                                                        task.wait(1)
+                                                    end
+                                                    if statusGui then statusGui:Destroy() end
+                                                end)
                                             end
-                                            if statusGui then statusGui:Destroy() end
-                                        end)
+                                        end
                                     end
                                 end
                                 testingTarget = nil
@@ -252,7 +266,6 @@ task.spawn(function()
                     end
                 end
 
-                -- 3. АТАКА ПЕТОВ
                 local data = {}
                 local validTargets = {}
                 for _, t in pairs(allTargets) do
@@ -270,27 +283,42 @@ task.spawn(function()
                     end
                 end
 
-                if next(data) then Net.Fire("Breakables_JoinPetBulk", data) end
+                if next(data) then
+                    Net.Fire("Breakables_JoinPetBulk", data)
+                end
             end)
         end
         task.wait(0.2)
     end
 end)
 
--- 3. TP HATCHING ZONE (Твой оригинальный возврат через 15 сек)
+-- [[ API АВТОФАРМА ]]
 task.spawn(function()
-    task.wait(15)
-    -- Летим к яйцам только если AutoHatch включен
-    if getCfg("EasterSettings", "AutoHatch", true) then
-        pcall(function()
-            local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
-            if hatchZone then
-                root.CFrame = hatchZone.CFrame
-                print("[✓] Телепортирован в HatchingZone")
+    while true do
+        if getCfg("FarmSettings", "AutoFarmAPI", true) then
+            if not AutoFarmCmds.IsEnabled() then
+                pcall(function() AutoFarmCmds.Enable() end)
             end
-        end)
+        else
+            if AutoFarmCmds.IsEnabled() then
+                pcall(function() AutoFarmCmds.Disable() end)
+            end
+        end
+        task.wait(1)
     end
 end)
+
+-- 3. TP HATCHING ZONE (Твой оригинал)
+task.wait(15)
+if getCfg("EasterSettings", "AutoHatch", true) then
+    pcall(function()
+        local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
+        if hatchZone then
+            root.CFrame = hatchZone.CFrame
+            print("[✓] Телепортирован в HatchingZone")
+        end
+    end)
+end
 
 -- ==========================================================
 -- 3. АВТО-УДАЧА И МЕНЕДЖЕР АПГРЕЙДОВ
