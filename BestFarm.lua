@@ -147,13 +147,6 @@ task.spawn(function()
         eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
     end
 end)
--- [[ ПРИВЯЗКА К ТВОЕМУ CONFIG ]]
-local function getCfg(category, value, default)
-    if getgenv().Config and getgenv().Config[category] and getgenv().Config[category][value] ~= nil then
-        return getgenv().Config[category][value]
-    end
-    return default
-end
 
 -- 1. ТЕЛЕПОРТ В ПОРТАЛ (Твой оригинал)
 task.spawn(function()
