@@ -210,20 +210,11 @@ local fixedY = targetCFrame.Y - 3.5
 local offset = 3.5
 
 -- 2. ПОИСК СУЩЕСТВУЮЩИХ ПАДОВ (чтобы не спавнить новые)
-local followPad = workspace:FindFirstChild("FollowPad_Full")
+
 local staticYPad = workspace:FindFirstChild("FollowPad_XZ")
 
 -- Если вдруг их нет (первый запуск), создаем один раз
-if not followPad then
-    followPad = Instance.new("Part", workspace)
-    followPad.Name = "FollowPad_Full"
-    followPad.Size = Vector3.new(14, 1, 14)
-    followPad.Anchored = true
-    followPad.CanCollide = true
-    followPad.Transparency = 0.5
-    followPad.BrickColor = BrickColor.new("Bright red")
-    followPad.Material = Enum.Material.Neon
-end
+
 
 if not staticYPad then
     staticYPad = Instance.new("Part", workspace)
@@ -278,7 +269,7 @@ tpBtn.MouseButton1Click:Connect(executeAction)
 -- 5. ЛОГИКА ДВИЖЕНИЯ
 RunService.RenderStepped:Connect(function()
     if hrp and hrp.Parent then
-        followPad.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y - offset, hrp.Position.Z)
+
         staticYPad.CFrame = CFrame.new(hrp.Position.X, fixedY, hrp.Position.Z)
         if hrp.AssemblyLinearVelocity.Y < -0.1 then
             hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, 0, hrp.AssemblyLinearVelocity.Z)
