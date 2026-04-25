@@ -52,7 +52,8 @@ local tokenStats = {
     ["Spring Yellow Sunflower Token"] = {start = 0, current = 0, label = "Yellow Sunfl."},
     ["Spring Red Tulip Token"] = {start = 0, current = 0, label = "Red Tulip"},
     ["Spring Bluebell Token"] = {start = 0, current = 0, label = "Bluebell"},
-    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"}
+    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"},
+    ["Spring Chest Token(мб нот ворк)"] = {start = 0, current = 0, label = "Chest Token"}
 }
 
 -- Функция для форматирования времени
