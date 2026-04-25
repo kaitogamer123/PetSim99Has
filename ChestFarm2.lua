@@ -281,15 +281,16 @@ local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
 
 -- 1. ТИХАЯ АКТИВАЦИЯ ИГРОВОГО АВТОФАРМА (ТЕПЕРЬ НА 40 ЗОНУ)
 task.spawn(function()
+    task.wait(10)
     local oldCF = root.CFrame
-    local zone40 = ZonesFolder:WaitForChild("40", 10)
+    local zone40 = ZonesFolder:WaitForChild("41", 10)
     if zone40 then
         root.CFrame = zone40.CFrame * CFrame.new(0, 5, 0)
-        task.wait(2)
+        task.wait(4)
         pcall(function()
             require(game:GetService("ReplicatedStorage").Library.Client.AutoFarmCmds).Enable()
         end)
-        task.wait(2)
+        task.wait(7)
         root.CFrame = oldCF
     end
 end)
@@ -302,7 +303,7 @@ local function getZoneOfPart(part)
     if not hp then return nil end
     local pPos = hp.Position
     -- Цикл изменен: начинаем с 40
-    for i = 40, 34, -1 do
+    for i = 41, 34, -1 do
         local zone = ZonesFolder:FindFirstChild(tostring(i))
         if zone then
             local size, pos = zone.Size, zone.Position
@@ -331,7 +332,7 @@ task.spawn(function()
             -- Выбор приоритетного сундука (от 40 к 34)
             local target = nil
             local breakables = Things.Breakables:GetChildren()
-            for i = 40, 34, -1 do
+            for i = 41, 34, -1 do
                 for _, b in pairs(breakables) do
                     if getZoneOfPart(b) == tostring(i) then 
                         target = b 
