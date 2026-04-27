@@ -301,22 +301,26 @@ task.spawn(function()
         mainTxt.Text = "📍 Активация автофарма..."
     end
 end)
--- ==========================================================
--- УЛЬТИМАТИВНАЯ СИСТЕМА: MEGA FARM + BOSS CHEST
--- ==========================================================
 
+
+
+
+
+-- ==========================================================
+-- DONATE EDITION: ФАРМ ЛЮБОЙ ДИСТАНЦИИ (4 ЗОНЫ)
+-- ==========================================================
 _G.MegaFarmSystem = false 
 task.wait(0.5)
 _G.MegaFarmSystem = true
 
 local ignoredZones = {} 
 local testingTarget = nil 
+local lastLogTime = 0
 local confirmedCount = 0 
 local countdownStarted = false 
 
 task.spawn(function()
     local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
-    local Network = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
     local MapCmds = require(Lib:WaitForChild("Client"):WaitForChild("MapCmds"))
     local BreakableFrontend = require(Lib:WaitForChild("Client"):WaitForChild("BreakableFrontend"))
     
@@ -328,7 +332,6 @@ task.spawn(function()
     local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
     local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
 
-    -- Функция определения зоны (из твоего скрипта)
     local function getZoneOfPart(part)
         local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
         if not hp then return nil end
@@ -343,100 +346,110 @@ task.spawn(function()
         return nil
     end
 
+    print("--- [SYSTEM]: Запущен MegaFarm с индикацией статуса ---")
+
     while _G.MegaFarmSystem do
         pcall(function()
-            -- 1. СБОР СФЕР (Твоя логика)
+            -- 1. Сбор сфер
             local orbIds = {}
             for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
             if #orbIds > 0 then Network["Orbs: Collect"]:FireServer(orbIds) end
             
             local petIds = {}
             for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
-            
-            -- 2. ПРОВЕРКА BOSS CHEST (Приоритет #1)
-            local currentZoneInfo = MapCmds.GetCurrentInstanceInfo()
-            local currentZoneNum = currentZoneInfo and currentZoneInfo.ZoneNumber
-            local bossChestToAttack = nil
+            local allTargets = Breakables:GetChildren()
 
-            if currentZoneNum then
-                for id, data in pairs(BreakableFrontend.GetActiveBreakables()) do
-                    if data.dir and data.dir._id == "Easter2026BossChest" then
-                        local areaID = data.areaID or ""
-                        local chestZone = tonumber(string.match(areaID, "_(%d+)$"))
-                        if chestZone == currentZoneNum then
-                            bossChestToAttack = id
-                            break
-                        end
-                    end
-                end
-            end
-
-            -- 3. ЛОГИКА РАСПРЕДЕЛЕНИЯ ПЕТОВ
-            local data = {}
-            
-            if bossChestToAttack then
-                -- Если есть сундук — ВСЕ петы на него
-                for _, pId in ipairs(petIds) do
-                    data[pId] = bossChestToAttack
-                end
-                if tick() % 5 < 0.2 then print("🎯 Атака Boss Chest в зоне " .. currentZoneNum) end
-            else
-                -- Если сундука нет — обычный фарм зон
-                local allTargets = Breakables:GetChildren()
-
-                -- Твоя проверка зон (Тест)
-                if not testingTarget then
-                    for _, t in pairs(allTargets) do
-                        local zName = getZoneOfPart(t)
-                        if zName and ignoredZones[zName] == nil then
-                            testingTarget = t
-                            ignoredZones[zName] = "checking"
-                            task.delay(5, function() 
-                                if testingTarget and testingTarget.Parent == Breakables then
-                                    ignoredZones[zName] = true
+            -- 2. ТЕСТ ЗОН И ОБНОВЛЕНИЕ ГУИ
+            if not testingTarget then
+                for _, t in pairs(allTargets) do
+                    local zName = getZoneOfPart(t)
+                    if zName and ignoredZones[zName] == nil then
+                        testingTarget = t
+                        ignoredZones[zName] = "checking"
+                        
+                        task.delay(5, function() 
+                            if testingTarget and testingTarget.Parent == Breakables then
+                                ignoredZones[zName] = true
+                            else
+                                ignoredZones[zName] = false
+                                confirmedCount = confirmedCount + 1
+                                if confirmedCount < 4 then
+                                    mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4"
                                 else
-                                    ignoredZones[zName] = false
-                                    confirmedCount = confirmedCount + 1
-                                    if confirmedCount < 4 then
-                                        mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4"
-                                    elseif not countdownStarted then
+                                    if not countdownStarted then
                                         countdownStarted = true
                                         task.spawn(function()
                                             for i = 10, 1, -1 do
                                                 mainTxt.Text = "🚀 Автофарм запущен! " .. i
                                                 task.wait(1)
                                             end
-                                            gui:Destroy()
+                                            -- Мы НЕ удаляем GUI полностью, а оставляем его для статуса, 
+                                            -- либо можешь оставить удаление, если статус не нужен после старта.
+                                            -- gui:Destroy() 
                                         end)
                                     end
                                 end
-                                testingTarget = nil
-                            end)
-                            break
-                        end
-                    end
-                end
-
-                local validTargets = {}
-                for _, t in pairs(allTargets) do
-                    local zName = getZoneOfPart(t)
-                    if not zName or ignoredZones[zName] == false then
-                        table.insert(validTargets, t)
-                    end
-                end
-
-                for _, pId in ipairs(petIds) do
-                    if testingTarget then
-                        data[pId] = testingTarget.Name
-                    elseif #validTargets > 0 then
-                        data[pId] = validTargets[math.random(1, #validTargets)].Name
+                            end
+                            testingTarget = nil
+                        end)
+                        break
                     end
                 end
             end
 
-            -- 4. ОТПРАВКА ПАКЕТА НА СЕРВЕР
+            -- 3. ПОИСК BOSS CHEST (Только после нахождения 4 лок)
+            local bossChestId = nil
+            if confirmedCount >= 4 then
+                local zoneInfo = MapCmds.GetCurrentInstanceInfo()
+                local currentZ = zoneInfo and zoneInfo.ZoneNumber
+                if currentZ then
+                    for id, data in pairs(BreakableFrontend.GetActiveBreakables()) do
+                        if data.dir and data.dir._id == "Easter2026BossChest" then
+                            local aID = data.areaID or ""
+                            if tonumber(string.match(aID, "_(%d+)$")) == currentZ then
+                                bossChestId = id
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- 4. РАСПРЕДЕЛЕНИЕ ПЕТОВ И ОБНОВЛЕНИЕ СТАТУСА
+            local data = {}
+            local validTargets = {}
+            for _, t in pairs(allTargets) do
+                local zName = getZoneOfPart(t)
+                if not zName or ignoredZones[zName] == false then
+                    table.insert(validTargets, t)
+                end
+            end
+
+            -- Обновляем текст статуса в ГУИ (eggTxt или subTxt в зависимости от твоего конфига)
+            if countdownStarted then
+                if bossChestId then
+                    mainTxt.Text = "🎯 Фармлю Boss Chest..."
+                else
+                    mainTxt.Text = "💎 Фармлю локации..."
+                end
+            end
+
+            for _, pId in ipairs(petIds) do
+                if bossChestId then
+                    data[pId] = bossChestId
+                elseif testingTarget then
+                    data[pId] = testingTarget.Name
+                elseif #validTargets > 0 then
+                    data[pId] = validTargets[math.random(1, #validTargets)].Name
+                end
+            end
+
             if next(data) then
                 Network.Breakables_JoinPetBulk:FireServer(data)
+            end
+
+            if tick() - lastLogTime >= 1 then
+                lastLogTime = tick()
             end
         end)
         task.wait(0.2)
