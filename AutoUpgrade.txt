@@ -1,5 +1,5 @@
 -- ==========================================================
--- УЛЬТИМАТИВНЫЙ МЕНЕДЖЕР: ПРОКАЧКА В МАКСИМУМ
+-- УЛЬТИМАТИВНЫЙ МЕНЕДЖЕР: АВТО-АПГРЕЙД (АКТУАЛЬНАЯ ВЕРСИЯ)
 -- ==========================================================
 
 _G.AutoEasterManager = false
@@ -7,59 +7,66 @@ task.wait(0.5)
 _G.AutoEasterManager = true
 
 task.spawn(function()
+    -- Подключаем игровые библиотеки из твоего исходника
     local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
+    local EventUpgradeCmds = require(Lib:WaitForChild("Client"):WaitForChild("EventUpgradeCmds"))
+    local EventUpgradeDir = require(Lib:WaitForChild("Directory"):WaitForChild("EventUpgrades"))
     local Save = require(Lib:WaitForChild("Client"):WaitForChild("Save"))
-    local Net = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
-    local UpgradeRemote = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("EventUpgrades: Purchase")
+    local EasterTypes = require(Lib:WaitForChild("Types"):WaitForChild("Easter2026"))
 
-    local upgradeTracks = {"CooldownAndAmount", "HatchSpeed", "Luck", "ShinyLuck"}
-    local luckBoosts = {"Huge", "Titanic", "Gargantuan"}
-    local tokenMapping = {
-        ["Spring Bluebell Token"] = "Bluebell",
-        ["Spring Red Tulip Token"] = "RedTulip",
-        ["Spring Pink Rose Token"] = "PinkRose",
-        ["Spring Yellow Sunflower Token"] = "Sunflower"
-    }
+    -- Треки из исходника игры
+    local baseTracks = {"Luck", "ShinyLuck", "HatchSpeed", "CooldownAndAmount"}
 
-    print("--- [MANAGER]: Режим 'ПРОКАЧКА В МАКСИМУМ' запущен ---")
+    -- Функция определения актуальных ID (как в игре)
+    local function getCurrentUpgradeIds()
+        local data = Save.Get()
+        local activeEgg = data and data.Easter2026ActiveEgg or 1
+        local ids = {}
+        
+        -- Базовые апгрейды
+        for _, track in ipairs(baseTracks) do
+            table.insert(ids, "Easter2026Egg" .. activeEgg .. track)
+        end
+        
+        -- Апгрейды Босс-сундука (BossChestTracks)
+        local bossTracks = EasterTypes.GetBossChestTracks(activeEgg)
+        for _, track in ipairs(bossTracks) do
+            table.insert(ids, "Easter2026Egg" .. activeEgg .. track)
+        end
+        
+        return ids
+    end
+
+    print("--- [MANAGER]: Скрипт активен. Только апгрейды. ---")
 
     while _G.AutoEasterManager do
         pcall(function()
-            local inv = Save.Get().Inventory.Misc or {}
+            local currentIds = getCurrentUpgradeIds()
 
-            -- ШАГ 1: АПГРЕЙДЫ EGG 5 (СКУПАЕМ ВСЁ ДО УПОРА)
-            for _, track in ipairs(upgradeTracks) do
-                local upgradeId = "Easter2026Egg8" .. track 
+            for _, upgradeId in ipairs(currentIds) do
+                local upgradeData = EventUpgradeDir[upgradeId]
                 
-                -- Цикл покупки до тех пор, пока сервер возвращает TRUE
-                local bought
-                repeat
-                    bought = UpgradeRemote:InvokeServer(upgradeId)
-                    if bought then
-                        print("🚀 [UPGRADE]: Куплен уровень для " .. track)
-                        task.wait(0.1) -- Минимальная задержка между покупками
-                    end
-                until not bought or not _G.AutoEasterManager
-            end
+                if upgradeData then
+                    -- Проверяем, можно ли купить (хватает ли ресурсов и не макс. ли уровень)
+                    local currentTier = EventUpgradeCmds.GetTier(upgradeData)
+                    local maxTier = #upgradeData.TierPowers
 
-            task.wait(1)
-
-            -- ШАГ 2: МАШИНА УДАЧИ (Остатки)
-            for _, item in pairs(inv) do
-                local internalKey = tokenMapping[item.id]
-                -- Оставляем 5000 токенов (запас на будущие уровни апгрейдов)
-                if internalKey and (item._am or 0) > 5000 then
-                    for _, boostType in ipairs(luckBoosts) do
-                        local success = Net.Invoke("Easter2026ChanceMachine_AddTime", boostType, internalKey, item._am)
-                        if success then
-                            print(string.format("✅ [LUCK]: Влито %d %s в %s", item._am, internalKey, boostType))
-                        end
-                        task.wait(0.1)
+                    if currentTier < maxTier then
+                        -- Пытаемся купить, пока сервер разрешает
+                        local bought
+                        repeat
+                            bought = EventUpgradeCmds.Purchase(upgradeData)
+                            if bought then
+                                print("🚀 [UPGRADE]: Куплен " .. upgradeId .. " (Уровень " .. (currentTier + 1) .. ")")
+                                task.wait(0.2)
+                            end
+                        until not bought or not _G.AutoEasterManager
                     end
                 end
             end
         end)
 
-        task.wait(180) -- Проверка каждые 3 минуты
+        task.wait(30) -- Проверка каждые 30 секунд
     end
+    print("--- [MANAGER]: Скрипт остановлен. ---")
 end)
