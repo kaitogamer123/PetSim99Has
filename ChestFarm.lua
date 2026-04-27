@@ -1,4 +1,3 @@
-print("injected")
 -- Ждем загрузку игры
 repeat task.wait() until game:IsLoaded()
 repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
@@ -9,7 +8,8 @@ local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
 task.wait(2)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
 task.wait(2)
--- БЛОК СОЗДАНИЯ ГУИ (Вставь в начало)
+
+-- БЛОК СОЗДАНИЯ ГУИ
 local function createNotify()
     local sg = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
     sg.Name = "FarmStatusGui"
@@ -52,7 +52,8 @@ local tokenStats = {
     ["Spring Yellow Sunflower Token"] = {start = 0, current = 0, label = "Yellow Sunfl."},
     ["Spring Red Tulip Token"] = {start = 0, current = 0, label = "Red Tulip"},
     ["Spring Bluebell Token"] = {start = 0, current = 0, label = "Bluebell"},
-    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"}
+    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"},
+    ["Spring Boss Chest Token"] = {start = 0, current = 0, label = "Boss Chest"} -- Добавлено
 }
 
 -- Функция для форматирования времени
@@ -63,15 +64,15 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
--- 2. ГУИ СТАТИСТИКИ (Справа по центру + Время)
+-- 2. ГУИ СТАТИСТИКИ
 local function createStatsGui()
     local sg = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
     sg.Name = "TokenStatsGui"
     sg.ResetOnSpawn = false
 
     local frame = Instance.new("Frame", sg)
-    frame.Size = UDim2.new(0, 350, 0, 230) -- Еще чуть выше для времени
-    frame.Position = UDim2.new(1, -360, 0.5, -115) -- Справа по центру
+    frame.Size = UDim2.new(0, 350, 0, 260) -- Увеличено под новую строку
+    frame.Position = UDim2.new(1, -360, 0.5, -130)
     frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     frame.BackgroundTransparency = 0.3
     Instance.new("UICorner", frame)
@@ -97,7 +98,8 @@ local function createStatsGui()
         ["Spring Yellow Sunflower Token"] = createLine("Spring Yellow Sunflower Token", Color3.fromRGB(255, 255, 100)),
         ["Spring Red Tulip Token"] = createLine("Spring Red Tulip Token", Color3.fromRGB(255, 100, 100)),
         ["Spring Bluebell Token"] = createLine("Spring Bluebell Token", Color3.fromRGB(100, 200, 255)),
-        ["Spring Egg Token"] = createLine("Spring Egg Token", Color3.fromRGB(255, 255, 255))
+        ["Spring Egg Token"] = createLine("Spring Egg Token", Color3.fromRGB(255, 255, 255)),
+        ["Spring Boss Chest Token"] = createLine("Spring Boss Chest Token", Color3.fromRGB(200, 150, 255)) -- Добавлено
     }
     
     local spacer = Instance.new("Frame", frame)
@@ -113,7 +115,6 @@ local function createStatsGui()
     eggLabel.TextXAlignment = Enum.TextXAlignment.Left
     eggLabel.Text = "Session Eggs: 0"
 
-    -- НОВАЯ СТРОКА: Session Time
     local timeLabel = Instance.new("TextLabel", frame)
     timeLabel.Size = UDim2.new(0.9, 0, 0, 25)
     timeLabel.BackgroundTransparency = 1
@@ -182,18 +183,6 @@ task.spawn(function()
         eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
     end
 end)
-
-
--- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
-task.spawn(function()
-    local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
-    if portal then
-        root.CFrame = portal.CFrame
-            else
-        print("[!] Вход в ивент не найден")
-    end
-end)
-
 
 task.wait(3)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
@@ -286,91 +275,205 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+executeAction()
 
-local lp = game.Players.LocalPlayer
-local root = lp.Character:WaitForChild("HumanoidRootPart")
-local Things = workspace:WaitForChild("__THINGS")
-local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent")
-local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
-
--- 1. ТИХАЯ АКТИВАЦИЯ ИГРОВОГО АВТОФАРМА (ТЕПЕРЬ НА 40 ЗОНУ)
+---------------
+task.wait(1)
 task.spawn(function()
-    local oldCF = root.CFrame
-    local zone40 = ZonesFolder:WaitForChild("40", 10)
-    if zone40 then
-        root.CFrame = zone40.CFrame * CFrame.new(0, 5, 0)
-        task.wait(2)
-        pcall(function()
-            require(game:GetService("ReplicatedStorage").Library.Client.AutoFarmCmds).Enable()
-        end)
-        task.wait(2)
-        root.CFrame = oldCF
+    -- Ждем появления зоны, так как ивент-локи грузятся отдельно
+    local zonePath = workspace.__THINGS.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20):WaitForChild("BREAK_ZONES", 10):WaitForChild("7", 10)
+        
+    if zonePath then
+        task.wait(3)
+        root.CFrame = zonePath.CFrame * CFrame.new(0, 5, 0)
+        mainTxt.Text = "📍 Активация автофарма..."
     end
 end)
+-- ==========================================================
+-- УЛЬТИМАТИВНАЯ СИСТЕМА: MEGA FARM + BOSS CHEST
+-- ==========================================================
 
+_G.MegaFarmSystem = false 
+task.wait(0.5)
 _G.MegaFarmSystem = true
 
--- 2. ФУНКЦИЯ ОПРЕДЕЛЕНИЯ ЗОНЫ (БЕЗ 41)
-local function getZoneOfPart(part)
-    local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
-    if not hp then return nil end
-    local pPos = hp.Position
-    -- Цикл изменен: начинаем с 40
-    for i = 40, 34, -1 do
-        local zone = ZonesFolder:FindFirstChild(tostring(i))
-        if zone then
+local ignoredZones = {} 
+local testingTarget = nil 
+local confirmedCount = 0 
+local countdownStarted = false 
+
+task.spawn(function()
+    local Lib = game:GetService("ReplicatedStorage"):WaitForChild("Library")
+    local Network = require(Lib:WaitForChild("Client"):WaitForChild("Network"))
+    local MapCmds = require(Lib:WaitForChild("Client"):WaitForChild("MapCmds"))
+    local BreakableFrontend = require(Lib:WaitForChild("Client"):WaitForChild("BreakableFrontend"))
+    
+    local Things = workspace:WaitForChild("__THINGS")
+    local Breakables = Things:WaitForChild("Breakables")
+    local Pets = Things:WaitForChild("Pets")
+    local Orbs = Things:WaitForChild("Orbs")
+    
+    local EasterEvent = Things.__INSTANCE_CONTAINER.Active:WaitForChild("EasterHatchEvent", 20)
+    local ZonesFolder = EasterEvent:WaitForChild("BREAK_ZONES")
+
+    -- Функция определения зоны (из твоего скрипта)
+    local function getZoneOfPart(part)
+        local hp = part:FindFirstChild("Hitbox") or part:FindFirstChildWhichIsA("BasePart")
+        if not hp then return nil end
+        local pPos = hp.Position
+        for _, zone in pairs(ZonesFolder:GetChildren()) do
             local size, pos = zone.Size, zone.Position
             if pPos.X >= pos.X - size.X/2 - 10 and pPos.X <= pos.X + size.X/2 + 10 and
                pPos.Z >= pos.Z - size.Z/2 - 10 and pPos.Z <= pos.Z + size.Z/2 + 10 then
-                return tostring(i)
+                return zone.Name
             end
         end
+        return nil
     end
-    return nil
-end
 
--- 3. ГЛАВНЫЙ ЦИКЛ ФАРМА (ПРИОРИТЕТ 40 -> 34)
-task.spawn(function()
-    local Network = require(game:GetService("ReplicatedStorage").Library.Client.Network)
     while _G.MegaFarmSystem do
         pcall(function()
-            -- Сбор сфер
+            -- 1. СБОР СФЕР (Твоя логика)
             local orbIds = {}
-            for _, o in pairs(Things.Orbs:GetChildren()) do 
-                table.insert(orbIds, tonumber(o.Name)) 
-                o:Destroy() 
-            end
-            if #orbIds > 0 then Network.Fire("Orbs: Collect", orbIds) end
+            for _, o in pairs(Orbs:GetChildren()) do table.insert(orbIds, tonumber(o.Name)) o:Destroy() end
+            if #orbIds > 0 then Network["Orbs: Collect"]:FireServer(orbIds) end
             
-            -- Выбор приоритетного сундука (от 40 к 34)
-            local target = nil
-            local breakables = Things.Breakables:GetChildren()
-            for i = 40, 34, -1 do
-                for _, b in pairs(breakables) do
-                    if getZoneOfPart(b) == tostring(i) then 
-                        target = b 
-                        break 
+            local petIds = {}
+            for _, p in pairs(Pets:GetChildren()) do table.insert(petIds, p.Name) end
+            
+            -- 2. ПРОВЕРКА BOSS CHEST (Приоритет #1)
+            local currentZoneInfo = MapCmds.GetCurrentInstanceInfo()
+            local currentZoneNum = currentZoneInfo and currentZoneInfo.ZoneNumber
+            local bossChestToAttack = nil
+
+            if currentZoneNum then
+                for id, data in pairs(BreakableFrontend.GetActiveBreakables()) do
+                    if data.dir and data.dir._id == "Easter2026BossChest" then
+                        local areaID = data.areaID or ""
+                        local chestZone = tonumber(string.match(areaID, "_(%d+)$"))
+                        if chestZone == currentZoneNum then
+                            bossChestToAttack = id
+                            break
+                        end
                     end
                 end
-                if target then break end
             end
 
-            -- Атака петами
-            if target then
-                local data = {}
-                for _, p in pairs(Things.Pets:GetChildren()) do 
-                    data[p.Name] = target.Name 
+            -- 3. ЛОГИКА РАСПРЕДЕЛЕНИЯ ПЕТОВ
+            local data = {}
+            
+            if bossChestToAttack then
+                -- Если есть сундук — ВСЕ петы на него
+                for _, pId in ipairs(petIds) do
+                    data[pId] = bossChestToAttack
                 end
-                if next(data) then
-                    Network.Fire("Breakables_JoinPetBulk", data)
+                if tick() % 5 < 0.2 then print("🎯 Атака Boss Chest в зоне " .. currentZoneNum) end
+            else
+                -- Если сундука нет — обычный фарм зон
+                local allTargets = Breakables:GetChildren()
+
+                -- Твоя проверка зон (Тест)
+                if not testingTarget then
+                    for _, t in pairs(allTargets) do
+                        local zName = getZoneOfPart(t)
+                        if zName and ignoredZones[zName] == nil then
+                            testingTarget = t
+                            ignoredZones[zName] = "checking"
+                            task.delay(5, function() 
+                                if testingTarget and testingTarget.Parent == Breakables then
+                                    ignoredZones[zName] = true
+                                else
+                                    ignoredZones[zName] = false
+                                    confirmedCount = confirmedCount + 1
+                                    if confirmedCount < 4 then
+                                        mainTxt.Text = "✅ Найдено зон: " .. confirmedCount .. "/4"
+                                    elseif not countdownStarted then
+                                        countdownStarted = true
+                                        task.spawn(function()
+                                            for i = 10, 1, -1 do
+                                                mainTxt.Text = "🚀 Автофарм запущен! " .. i
+                                                task.wait(1)
+                                            end
+                                            gui:Destroy()
+                                        end)
+                                    end
+                                end
+                                testingTarget = nil
+                            end)
+                            break
+                        end
+                    end
+                end
+
+                local validTargets = {}
+                for _, t in pairs(allTargets) do
+                    local zName = getZoneOfPart(t)
+                    if not zName or ignoredZones[zName] == false then
+                        table.insert(validTargets, t)
+                    end
+                end
+
+                for _, pId in ipairs(petIds) do
+                    if testingTarget then
+                        data[pId] = testingTarget.Name
+                    elseif #validTargets > 0 then
+                        data[pId] = validTargets[math.random(1, #validTargets)].Name
+                    end
                 end
             end
+
+            -- 4. ОТПРАВКА ПАКЕТА НА СЕРВЕР
+            if next(data) then
+                Network.Breakables_JoinPetBulk:FireServer(data)
+            end
         end)
-        task.wait(0.3)
+        task.wait(0.2)
     end
 end)
 
+
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Library = ReplicatedStorage:WaitForChild("Library")
+local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
+
+_G.AutoFarmEnabled = true
+
+task.spawn(function()
+    while true do
+        if _G.AutoFarmEnabled then
+            -- Если автофарм еще не включен - включаем его официально
+            if not AutoFarmCmds.IsEnabled() then
+                pcall(function()
+                    AutoFarmCmds.Enable()
+                end)
+            end
+        else
+            -- Если ты выключил чит - выключаем и автофарм игры
+            if AutoFarmCmds.IsEnabled() then
+                pcall(function()
+                    AutoFarmCmds.Disable()
+                end)
+            end
+        end
+        task.wait(1) -- Проверяем статус раз в секунду
+    end
+end)
+
+-- 3. TP HATCHING ZONE
+task.wait(20)
+pcall(function()
+    local hatchZone = workspace.__THINGS.__INSTANCE_CONTAINER.Active.EasterHatchEvent["1 | Cloud Meadow"].INTERACT.HatchingZone
+    if hatchZone then
+        root.CFrame = hatchZone.CFrame
+        print("[✓] Телепортирован в HatchingZone")
+    end
+end)
 executeAction()
+task.wait(1)
+-- ==========================================================
+-- 6. ФИНАЛЬНЫЙ БЛОК: ОТКРЫТИЕ ЯИЦ (АГРЕССИВНЫЙ MULTI-THREAD)
+-- ==========================================================
 
 task.spawn(function()
     task.wait(2) 
