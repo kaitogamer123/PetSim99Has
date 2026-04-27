@@ -29,7 +29,7 @@ task.spawn(function()
 
             -- ШАГ 1: АПГРЕЙДЫ EGG 5 (СКУПАЕМ ВСЁ ДО УПОРА)
             for _, track in ipairs(upgradeTracks) do
-                local upgradeId = "Easter2026Egg5" .. track 
+                local upgradeId = "Easter2026Egg8" .. track 
                 
                 -- Цикл покупки до тех пор, пока сервер возвращает TRUE
                 local bought
