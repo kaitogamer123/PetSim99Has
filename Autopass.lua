@@ -1,4 +1,10 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Library = ReplicatedStorage:WaitForChild("Library")
+local AutoFarmCmds = require(Library.Client.AutoFarmCmds)
 
+local lp = game.Players.LocalPlayer
+local root = lp.Character:WaitForChild("HumanoidRootPart")
+local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
 
 task.spawn(function()
     while true do
