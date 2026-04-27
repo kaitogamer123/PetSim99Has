@@ -185,6 +185,18 @@ task.spawn(function()
 end)
 
 task.wait(3)
+
+-- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
+task.spawn(function()
+    local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
+    if portal then
+        root.CFrame = portal.CFrame
+            else
+        print("[!] Вход в ивент не найден")
+    end
+end)
+
+task.wait(3)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
 --------------
 
