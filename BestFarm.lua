@@ -1,4 +1,3 @@
-print("injected")
 -- Ждем загрузку игры
 repeat task.wait() until game:IsLoaded()
 repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
@@ -9,7 +8,8 @@ local Network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
 task.wait(2)
 loadstring(game:HttpGet("https://rawscripts.net/raw/Pet-Simulator-99!-Cheat-Menu-17428"))()
 task.wait(2)
--- БЛОК СОЗДАНИЯ ГУИ (Вставь в начало)
+
+-- БЛОК СОЗДАНИЯ ГУИ
 local function createNotify()
     local sg = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
     sg.Name = "FarmStatusGui"
@@ -52,7 +52,8 @@ local tokenStats = {
     ["Spring Yellow Sunflower Token"] = {start = 0, current = 0, label = "Yellow Sunfl."},
     ["Spring Red Tulip Token"] = {start = 0, current = 0, label = "Red Tulip"},
     ["Spring Bluebell Token"] = {start = 0, current = 0, label = "Bluebell"},
-    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"}
+    ["Spring Egg Token"] = {start = 0, current = 0, label = "Egg Token"},
+    ["Spring Boss Chest Token"] = {start = 0, current = 0, label = "Boss Chest"} -- Добавлено
 }
 
 -- Функция для форматирования времени
@@ -63,15 +64,15 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
--- 2. ГУИ СТАТИСТИКИ (Справа по центру + Время)
+-- 2. ГУИ СТАТИСТИКИ
 local function createStatsGui()
     local sg = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
     sg.Name = "TokenStatsGui"
     sg.ResetOnSpawn = false
 
     local frame = Instance.new("Frame", sg)
-    frame.Size = UDim2.new(0, 350, 0, 230) -- Еще чуть выше для времени
-    frame.Position = UDim2.new(1, -360, 0.5, -115) -- Справа по центру
+    frame.Size = UDim2.new(0, 350, 0, 260) -- Увеличено под новую строку
+    frame.Position = UDim2.new(1, -360, 0.5, -130)
     frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     frame.BackgroundTransparency = 0.3
     Instance.new("UICorner", frame)
@@ -97,7 +98,8 @@ local function createStatsGui()
         ["Spring Yellow Sunflower Token"] = createLine("Spring Yellow Sunflower Token", Color3.fromRGB(255, 255, 100)),
         ["Spring Red Tulip Token"] = createLine("Spring Red Tulip Token", Color3.fromRGB(255, 100, 100)),
         ["Spring Bluebell Token"] = createLine("Spring Bluebell Token", Color3.fromRGB(100, 200, 255)),
-        ["Spring Egg Token"] = createLine("Spring Egg Token", Color3.fromRGB(255, 255, 255))
+        ["Spring Egg Token"] = createLine("Spring Egg Token", Color3.fromRGB(255, 255, 255)),
+        ["Spring Boss Chest Token"] = createLine("Spring Boss Chest Token", Color3.fromRGB(200, 150, 255)) -- Добавлено
     }
     
     local spacer = Instance.new("Frame", frame)
@@ -113,7 +115,6 @@ local function createStatsGui()
     eggLabel.TextXAlignment = Enum.TextXAlignment.Left
     eggLabel.Text = "Session Eggs: 0"
 
-    -- НОВАЯ СТРОКА: Session Time
     local timeLabel = Instance.new("TextLabel", frame)
     timeLabel.Size = UDim2.new(0.9, 0, 0, 25)
     timeLabel.BackgroundTransparency = 1
@@ -182,18 +183,6 @@ task.spawn(function()
         eggLabel.Text = "Session Eggs: " .. tostring(sessionEggs)
     end
 end)
-
-
--- 1. ТЕЛЕПОРТ В ПОРТАЛ (с задержкой для прогрузки)
-task.spawn(function()
-    local portal = workspace.__THINGS.Instances.EasterHatchEvent:WaitForChild("Teleports", 20):WaitForChild("Enter", 5)
-    if portal then
-        root.CFrame = portal.CFrame
-            else
-        print("[!] Вход в ивент не найден")
-    end
-end)
-
 
 task.wait(3)
 -- 2. ОЖИДАНИЕ ПЕРЕХОДА И ВКЛЮЧЕНИЕ АВТОФАРМА
